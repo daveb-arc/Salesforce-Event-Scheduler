@@ -1,0 +1,10 @@
+{
+  "orgName": "Salesforce-Event-Scheduler - Release Test Org",
+  "edition": "Enterprise",
+  "orgPreferences" : {
+    "enabled": [
+      "S1DesktopEnabled",
+      "ChatterEnabled"
+    ]
+  }
+}

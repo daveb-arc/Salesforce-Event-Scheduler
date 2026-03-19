@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <aggregates>
+        <calculatedFormula>RowCount</calculatedFormula>
+        <datatype>number</datatype>
+        <developerName>FORMULA1</developerName>
+        <isActive>true</isActive>
+        <isCrossBlock>false</isCrossBlock>
+        <masterLabel># of Appts</masterLabel>
+        <scale>0</scale>
+    </aggregates>
+    <colorRanges>
+        <columnName>FORMULA1</columnName>
+        <highColor>#FFFFFF</highColor>
+        <lowBreakpoint>10.0</lowBreakpoint>
+        <lowColor>#FFFFFF</lowColor>
+        <midColor>#FFCD95</midColor>
+    </colorRanges>
+    <columns>
+        <field>Contact.Appointments_Scheduled__r$C501_Appointment__c</field>
+    </columns>
+    <columns>
+        <field>Contact$Name</field>
+    </columns>
+    <columns>
+        <field>Contact.Appointments_Scheduled__r$CreatedDate</field>
+    </columns>
+    <columns>
+        <field>Contact.Appointments_Scheduled__r$Appointment_Info__c</field>
+    </columns>
+    <description>Use this to see how many appointments per time slot are scheduled according to the Appointments Scheduled object.</description>
+    <filter>
+        <criteriaItems>
+            <column>Contact.Appointments_Scheduled__r$Date__c</column>
+            <isUnlocked>true</isUnlocked>
+            <operator>greaterOrEqual</operator>
+            <value>TODAY</value>
+        </criteriaItems>
+        <language>en_US</language>
+    </filter>
+    <format>Matrix</format>
+    <groupingsAcross>
+        <dateGranularity>Day</dateGranularity>
+        <field>Contact.Appointments_Scheduled__r$C501_Time_Formula__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsAcross>
+    <groupingsDown>
+        <field>Contact.Appointments_Scheduled__r$Date__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Scheduled Appointments</name>
+    <params>
+        <name>co</name>
+        <value>0</value>
+    </params>
+    <reportType>Appointments_Scheduled__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <timeFrameFilter>
+        <dateColumn>Contact$CreatedDate</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

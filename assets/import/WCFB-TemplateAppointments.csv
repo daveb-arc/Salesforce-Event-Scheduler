@@ -1,0 +1,65 @@
+Available_Time__c,Date__c,Name,Name_Unique__c,Time__c
+2018-01-02T00:00:00.000Z,2018-01-01,Template Fourth Wednesday 4:00 PM,Template Fourth Wednesday 4:00 PM,4:00 PM
+2018-01-02T00:15:00.000Z,2018-01-01,Template Fourth Wednesday 4:15 PM,Template Fourth Wednesday 4:15 PM,4:15 PM
+2018-01-02T00:30:00.000Z,2018-01-01,Template Fourth Wednesday 4:30 PM,Template Fourth Wednesday 4:30 PM,4:30 PM
+2018-01-02T00:45:00.000Z,2018-01-01,Template Fourth Wednesday 4:45 PM,Template Fourth Wednesday 4:45 PM,4:45 PM
+2018-01-02T01:00:00.000Z,2018-01-01,Template Fourth Wednesday 5:00 PM,Template Fourth Wednesday 5:00 PM,5:00 PM
+2018-01-02T01:15:00.000Z,2018-01-01,Template Fourth Wednesday 5:15 PM,Template Fourth Wednesday 5:15 PM,5:15 PM
+2018-01-02T01:30:00.000Z,2018-01-01,Template Fourth Wednesday 5:30 PM,Template Fourth Wednesday 5:30 PM,5:30 PM
+2018-01-02T01:45:00.000Z,2018-01-01,Template Fourth Wednesday 5:45 PM,Template Fourth Wednesday 5:45 PM,5:45 PM
+2018-01-01T18:00:00.000Z,2018-01-01,Template Friday 10:00 AM,Template Friday 10:00 AM,10:00 AM
+2018-01-01T18:15:00.000Z,2018-01-01,Template Friday 10:15 AM,Template Friday 10:15 AM,10:15 AM
+2018-01-01T18:30:00.000Z,2018-01-01,Template Friday 10:30 AM,Template Friday 10:30 AM,10:30 AM
+2018-01-01T18:45:00.000Z,2018-01-01,Template Friday 10:45 AM,Template Friday 10:45 AM,10:45 AM
+2018-01-01T19:00:00.000Z,2018-01-01,Template Friday 11:00 AM,Template Friday 11:00 AM,11:00 AM
+2018-01-01T19:15:00.000Z,2018-01-01,Template Friday 11:15 AM,Template Friday 11:15 AM,11:15 AM
+2018-01-01T19:30:00.000Z,2018-01-01,Template Friday 11:30 AM,Template Friday 11:30 AM,11:30 AM
+2018-01-01T19:45:00.000Z,2018-01-01,Template Friday 11:45 AM,Template Friday 11:45 AM,11:45 AM
+2018-01-01T20:00:00.000Z,2018-01-01,Template Friday 12:00 PM,Template Friday 12:00 PM,12:00 PM
+2018-01-01T20:15:00.000Z,2018-01-01,Template Friday 12:15 PM,Template Friday 12:15 PM,12:15 PM
+2018-01-01T20:30:00.000Z,2018-01-01,Template Friday 12:30 PM,Template Friday 12:30 PM,12:30 PM
+2018-01-01T20:45:00.000Z,2018-01-01,Template Friday 12:45 PM,Template Friday 12:45 PM,12:45 PM
+2018-01-01T21:00:00.000Z,2018-01-01,Template Monday 1:00 PM,Template Monday 1:00 PM,1:00 PM
+2018-01-01T21:15:00.000Z,2018-01-01,Template Monday 1:15 PM,Template Monday 1:15 PM,1:15 PM
+2018-01-01T21:30:00.000Z,2018-01-01,Template Monday 1:30 PM,Template Monday 1:30 PM,1:30 PM
+2018-01-01T21:45:00.000Z,2018-01-01,Template Monday 1:45 PM,Template Monday 1:45 PM,1:45 PM
+2018-01-01T20:00:00.000Z,2018-01-01,Template Monday 12:00 PM,Template Monday 12:00 PM,12:00 PM
+2018-01-01T20:15:00.000Z,2018-01-01,Template Monday 12:15 PM,Template Monday 12:15 PM,12:15 PM
+2018-01-01T20:30:00.000Z,2018-01-01,Template Monday 12:30 PM,Template Monday 12:30 PM,12:30 PM
+2018-01-01T20:45:00.000Z,2018-01-01,Template Monday 12:45 PM,Template Monday 12:45 PM,12:45 PM
+2018-01-01T22:00:00.000Z,2018-01-01,Template Monday 2:00 PM,Template Monday 2:00 PM,2:00 PM
+2018-01-01T22:15:00.000Z,2018-01-01,Template Monday 2:15 PM,Template Monday 2:15 PM,2:15 PM
+2018-01-01T22:30:00.000Z,2018-01-01,Template Monday 2:30 PM,Template Monday 2:30 PM,2:30 PM
+2018-01-01T22:45:00.000Z,2018-01-01,Template Monday 2:45 PM,Template Monday 2:45 PM,2:45 PM
+2018-01-02T00:00:00.000Z,2018-01-01,Template Second Wednesday 4:00 PM,Template Second Wednesday 4:00 PM,4:00 PM
+2018-01-02T00:15:00.000Z,2018-01-01,Template Second Wednesday 4:15 PM,Template Second Wednesday 4:15 PM,4:15 PM
+2018-01-02T00:30:00.000Z,2018-01-01,Template Second Wednesday 4:30 PM,Template Second Wednesday 4:30 PM,4:30 PM
+2018-01-02T00:45:00.000Z,2018-01-01,Template Second Wednesday 4:45 PM,Template Second Wednesday 4:45 PM,4:45 PM
+2018-01-02T01:00:00.000Z,2018-01-01,Template Second Wednesday 5:00 PM,Template Second Wednesday 5:00 PM,5:00 PM
+2018-01-02T01:15:00.000Z,2018-01-01,Template Second Wednesday 5:15 PM,Template Second Wednesday 5:15 PM,5:15 PM
+2018-01-02T01:30:00.000Z,2018-01-01,Template Second Wednesday 5:30 PM,Template Second Wednesday 5:30 PM,5:30 PM
+2018-01-02T01:45:00.000Z,2018-01-01,Template Second Wednesday 5:45 PM,Template Second Wednesday 5:45 PM,5:45 PM
+2018-01-01T18:00:00.000Z,2018-01-01,Template Thursday 10:00 AM,Template Thursday 10:00 AM,10:00 AM
+2018-01-01T18:15:00.000Z,2018-01-01,Template Thursday 10:15 AM,Template Thursday 10:15 AM,10:15 AM
+2018-01-01T18:30:00.000Z,2018-01-01,Template Thursday 10:30 AM,Template Thursday 10:30 AM,10:30 AM
+2018-01-01T18:45:00.000Z,2018-01-01,Template Thursday 10:45 AM,Template Thursday 10:45 AM,10:45 AM
+2018-01-01T19:00:00.000Z,2018-01-01,Template Thursday 11:00 AM,Template Thursday 11:00 AM,11:00 AM
+2018-01-01T19:15:00.000Z,2018-01-01,Template Thursday 11:15 AM,Template Thursday 11:15 AM,11:15 AM
+2018-01-01T19:30:00.000Z,2018-01-01,Template Thursday 11:30 AM,Template Thursday 11:30 AM,11:30 AM
+2018-01-01T19:45:00.000Z,2018-01-01,Template Thursday 11:45 AM,Template Thursday 11:45 AM,11:45 AM
+2018-01-01T20:00:00.000Z,2018-01-01,Template Thursday 12:00 PM,Template Thursday 12:00 PM,12:00 PM
+2018-01-01T20:15:00.000Z,2018-01-01,Template Thursday 12:15 PM,Template Thursday 12:15 PM,12:15 PM
+2018-01-01T20:30:00.000Z,2018-01-01,Template Thursday 12:30 PM,Template Thursday 12:30 PM,12:30 PM
+2018-01-01T20:45:00.000Z,2018-01-01,Template Thursday 12:45 PM,Template Thursday 12:45 PM,12:45 PM
+2018-01-01T18:00:00.000Z,2018-01-01,Template Wednesday 10:00 AM,Template Wednesday 10:00 AM,10:00 AM
+2018-01-01T18:15:00.000Z,2018-01-01,Template Wednesday 10:15 AM,Template Wednesday 10:15 AM,10:15 AM
+2018-01-01T18:30:00.000Z,2018-01-01,Template Wednesday 10:30 AM,Template Wednesday 10:30 AM,10:30 AM
+2018-01-01T18:45:00.000Z,2018-01-01,Template Wednesday 10:45 AM,Template Wednesday 10:45 AM,10:45 AM
+2018-01-01T19:00:00.000Z,2018-01-01,Template Wednesday 11:00 AM,Template Wednesday 11:00 AM,11:00 AM
+2018-01-01T19:15:00.000Z,2018-01-01,Template Wednesday 11:15 AM,Template Wednesday 11:15 AM,11:15 AM
+2018-01-01T19:30:00.000Z,2018-01-01,Template Wednesday 11:30 AM,Template Wednesday 11:30 AM,11:30 AM
+2018-01-01T19:45:00.000Z,2018-01-01,Template Wednesday 11:45 AM,Template Wednesday 11:45 AM,11:45 AM
+2018-01-01T20:00:00.000Z,2018-01-01,Template Wednesday 12:00 PM,Template Wednesday 12:00 PM,12:00 PM
+2018-01-01T20:15:00.000Z,2018-01-01,Template Wednesday 12:15 PM,Template Wednesday 12:15 PM,12:15 PM
+2018-01-01T20:30:00.000Z,2018-01-01,Template Wednesday 12:30 PM,Template Wednesday 12:30 PM,12:30 PM
+2018-01-01T20:45:00.000Z,2018-01-01,Template Wednesday 12:45 PM,Template Wednesday 12:45 PM,12:45 PM

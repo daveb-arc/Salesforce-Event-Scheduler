@@ -1,0 +1,17 @@
+Hello {!C501_Appointment_Scheduled__c.C501_Contact__c}
+
+Thanks for scheduling an appointment.
+
+When:
+{!C501_Appointment_Scheduled__c.Date__c}
+{!C501_Appointment_Scheduled__c.Time__c}
+
+Where:
+White Center Food Bank
+10829 8th Ave SW
+Seattle, WA 98146
+(206) 762-2848
+
+Remember to bring
+* ID
+* Proof of current address

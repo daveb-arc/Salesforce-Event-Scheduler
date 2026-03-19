@@ -1,0 +1,7 @@
+project:
+    name: Salesforce-Event-Scheduler
+    package:
+        name:  Salesforce-Event-Scheduler
+        api_version: '42.0'
+
+
