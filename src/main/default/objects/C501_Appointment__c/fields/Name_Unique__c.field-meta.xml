@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Name_Unique__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>Unique Name to prevent more than 1 appointment for same day and time</description>
+    <externalId>false</externalId>
+    <label>Name Unique</label>
+    <length>128</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

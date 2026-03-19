@@ -5,7 +5,7 @@
         <description>Admin Setup - Appointments Alert</description>
         <protected>false</protected>
         <recipients>
-            <recipient>db.wc@501commons.org</recipient>
+            <recipient>adrianna@whitecenterfoodbank.org</recipient>
             <type>user</type>
         </recipients>
         <senderType>CurrentUser</senderType>

@@ -1,1 +1,11 @@
-{"sourceApiVersion": "42.0", "packageDirectories": [{"default": true, "path": "force-app"}], "namespace": null}
+{
+    "packageDirectories": [
+      {
+        "path": "src",
+        "default": true
+      }
+    ],
+    "namespace": "",
+    "sourceApiVersion": "42.0"
+  }
+  

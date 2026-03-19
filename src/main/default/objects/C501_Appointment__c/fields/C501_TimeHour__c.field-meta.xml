@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>C501_TimeHour__c</fullName>
+    <description>Hour of appointment, adjusting for timezone (difference from GMT) and DST (adapted from https://help.salesforce.com/s/articleView?id=000394902&amp;type=1)</description>
+    <externalId>false</externalId>
+    <formula>IF( OR(
+Available_Time__c &lt;
+DATETIMEVALUE(DATE(YEAR(DATEVALUE(Available_Time__c)),3,14) -(WEEKDAY(DATE(YEAR(DATEVALUE(Available_Time__c)),3,14))-1))+10/24,
+/*If the date-time is before the second Sunday in March (end of wintertime)*/
+Available_Time__c &gt;= DATETIMEVALUE(DATE(YEAR(DATEVALUE(Available_Time__c)),11,7)
+-(WEEKDAY(DATE(YEAR(DATEVALUE(Available_Time__c)),11,7))-1))+10/24
+/*Or the date-time is after the first Sunday in November (start of wintertime)*/
+),
+HOUR(TIMEVALUE(Available_Time__c)) - 8,
+/* Return GMT offset by 8 hours (ST) */
+HOUR(TIMEVALUE(Available_Time__c)) - 7
+/* Otherwise, return GMT offset by 7 hours (DST) */
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <inlineHelpText>Hour of appointment, adjusting for timezone (difference from GMT) and DST</inlineHelpText>
+    <label>TimeHour</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

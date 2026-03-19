@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Appointments_Full__c</fullName>
+    <externalId>false</externalId>
+    <formula>C501_Scheduled_Appointments__c &gt;=  Maximum_Scheduled_Appointments__c</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Appointments Full</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>
