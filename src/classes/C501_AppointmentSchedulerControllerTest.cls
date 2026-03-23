@@ -176,19 +176,32 @@ private class C501_AppointmentSchedulerControllerTest {
 
     @isTest
     static void testLoadDay2TimesAndDay3Times() {
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Contact senior = new Contact(
+            FirstName = 'Senior',
+            LastName = 'Tester',
+            Birthdate = Date.newInstance(1950, 1, 1),
+            AccountId = acct.Id,
+            Email = 'senior-tester@example.com'
+        );
+        insert senior;
+    
         List<C501_Appointment__c> appts = getTestAppointments();
-
+    
         Test.startTest();
         C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.contactRec = senior;
+        ctrl.searchContact = new Contact(LastName = senior.LastName, Birthdate = senior.Birthdate);
+    
         ctrl.day2Date = appts[1].Date__c;
         ctrl.day2AppointmentId = 'abc';
         ctrl.loadDay2Times();
-
+    
         ctrl.day3Date = appts[2].Date__c;
         ctrl.day3AppointmentId = 'xyz';
         ctrl.loadDay3Times();
         Test.stopTest();
-
+    
         System.assertEquals(null, ctrl.day2AppointmentId);
         System.assertEquals(null, ctrl.day3AppointmentId);
         System.assert(ctrl.day2TimeOptions.size() > 0);
@@ -267,7 +280,7 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals('User', ctrl.searchContact.LastName);
         System.assertEquals('User', ctrl.searchLastNameText);
     }
-    
+
     @isTest
     static void testSearchBirthDateTextGetterSetter() {
         C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
@@ -281,6 +294,131 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(Date.newInstance(2000, 1, 1), ctrl.searchContact.Birthdate);
         System.assertEquals('2000-01-01', ctrl.searchBirthDateText);
     }
+
+    @isTest
+    static void testLoadDay1TimesClearsWhenExistingAppointmentSameDay() {
+        Contact con = getTestContact();
+        List<C501_Appointment__c> appts = getTestAppointments();
+    
+        insert new Appointment_Scheduled_Request__c(
+            Name = 'Existing Day 1',
+            Contact__c = con.Id,
+            Account__c = con.AccountId,
+            Appointment__c = appts[0].Id,
+            Appointment_Date__c = appts[0].Date__c,
+            Email__c = con.Email
+        );
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = appts[0].Date__c;
+        ctrl.day1AppointmentId = appts[0].Id;
+        ctrl.day1TimeOptions = new List<SelectOption>{ new SelectOption('x', 'dummy') };
+        ctrl.loadDay1Times();
+        Test.stopTest();
+    
+        System.assertEquals(null, ctrl.day1Date);
+        System.assertEquals(null, ctrl.day1AppointmentId);
+        System.assertEquals(0, ctrl.day1TimeOptions.size());
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testLoadDay2TimesClearsWhenMonthAlreadyHasThreeAppointments() {
+        Contact con = getTestContact();
+        List<C501_Appointment__c> appts = getTestAppointments();
+    
+        Date targetDate = appts[1].Date__c;
+        Date month1 = Date.newInstance(targetDate.year(), targetDate.month(), 5);
+        Date month2 = Date.newInstance(targetDate.year(), targetDate.month(), 10);
+        Date month3 = Date.newInstance(targetDate.year(), targetDate.month(), 15);
+    
+        insert new List<Appointment_Scheduled_Request__c>{
+            new Appointment_Scheduled_Request__c(
+                Name = 'Month 1',
+                Contact__c = con.Id,
+                Account__c = con.AccountId,
+                Appointment_Id__c = 'A1',
+                Appointment_Date__c = month1,
+                Email__c = con.Email
+            ),
+            new Appointment_Scheduled_Request__c(
+                Name = 'Month 2',
+                Contact__c = con.Id,
+                Account__c = con.AccountId,
+                Appointment_Id__c = 'A2',
+                Appointment_Date__c = month2,
+                Email__c = con.Email
+            ),
+            new Appointment_Scheduled_Request__c(
+                Name = 'Month 3',
+                Contact__c = con.Id,
+                Account__c = con.AccountId,
+                Appointment_Id__c = 'A3',
+                Appointment_Date__c = month3,
+                Email__c = con.Email
+            )
+        };
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day2Date = targetDate;
+        ctrl.day2AppointmentId = appts[1].Id;
+        ctrl.day2TimeOptions = new List<SelectOption>{ new SelectOption('x', 'dummy') };
+        ctrl.loadDay2Times();
+        Test.stopTest();
+    
+        System.assertEquals(null, ctrl.day2Date);
+        System.assertEquals(null, ctrl.day2AppointmentId);
+        System.assertEquals(0, ctrl.day2TimeOptions.size());
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testLoadDay3TimesLoadsNormallyWhenDateAllowed() {
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Contact senior = new Contact(
+            FirstName = 'Senior',
+            LastName = 'Allowed',
+            Birthdate = Date.newInstance(1950, 1, 1),
+            AccountId = acct.Id,
+            Email = 'senior-allowed@example.com'
+        );
+        insert senior;
+
+        List<C501_Appointment__c> appts = getTestAppointments();
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.contactRec = senior;
+        ctrl.searchContact = new Contact(LastName = senior.LastName, Birthdate = senior.Birthdate);
+        ctrl.day3Date = appts[2].Date__c;
+        ctrl.loadDay3Times();
+        Test.stopTest();
+
+        System.assertEquals(appts[2].Date__c, ctrl.day3Date);
+        System.assertEquals(null, ctrl.day3AppointmentId);
+        System.assert(ctrl.day3TimeOptions.size() > 0);
+    }
+
+    @isTest
+    static void testTryLoadIncomingContactFromUrlId() {
+        Contact con = getTestContact();
+    
+        Test.setCurrentPage(Page.C501_Appointment_Schedule_Bulk);
+        ApexPages.currentPage().getParameters().put('id', con.Id);
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        Test.stopTest();
+    
+        System.assertNotEquals(null, ctrl.contactRec);
+        System.assertEquals(con.Id, ctrl.contactRec.Id);
+        System.assertEquals(con.Email, ctrl.email);
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(con.LastName, ctrl.searchContact.LastName);
+        System.assertEquals(con.Birthdate, ctrl.searchContact.Birthdate);
+    }    
 
     @isTest
     static void testScheduleDay3MissingFields() {
@@ -395,9 +533,9 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(4, ctrl.step);
 
         List<Appointment_Scheduled_Request__c> scheduled = [
-            SELECT Id, Contact_Id__c, Account_Id__c, Appointment_Id__c, Email__c
+            SELECT Id, Contact__c, Account__c, Appointment__c, Appointment_Id__c, Email__c
             FROM Appointment_Scheduled_Request__c
-            WHERE Contact_Id__c = :con.Id
+            WHERE Contact__c = :con.Id
         ];
         System.assertEquals(1, scheduled.size());
         System.assertEquals(appts[0].Id, scheduled[0].Appointment_Id__c);
@@ -405,11 +543,26 @@ private class C501_AppointmentSchedulerControllerTest {
 
     @isTest
     static void testScheduleThreeDifferentDays() {
-        Contact con = getTestContact();
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Contact senior = new Contact(
+            FirstName = 'Senior',
+            LastName = 'Schedule3',
+            Birthdate = Date.newInstance(1950, 1, 1),
+            AccountId = acct.Id,
+            Email = 'senior-schedule3@example.com'
+        );
+        insert senior;
+    
         List<C501_Appointment__c> appts = getTestAppointments();
-
+    
         Test.startTest();
-        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.contactRec = senior;
+        ctrl.searchContact = new Contact(LastName = senior.LastName, Birthdate = senior.Birthdate);
+        ctrl.email = senior.Email;
+        ctrl.step = 3;
+    
         ctrl.day1Date = appts[0].Date__c;
         ctrl.day1AppointmentId = appts[0].Id;
         ctrl.showDay2 = true;
@@ -420,15 +573,162 @@ private class C501_AppointmentSchedulerControllerTest {
         ctrl.day3AppointmentId = appts[2].Id;
         ctrl.schedule();
         Test.stopTest();
-
+    
         System.assertEquals(4, ctrl.step);
-
+    
         List<Appointment_Scheduled_Request__c> scheduled = [
-            SELECT Id, Contact_Id__c, Appointment_Id__c
+            SELECT Id, Contact__c, Appointment__c, Appointment_Id__c
             FROM Appointment_Scheduled_Request__c
-            WHERE Contact_Id__c = :con.Id
+            WHERE Contact__c = :String.valueOf(senior.Id)
         ];
         System.assertEquals(3, scheduled.size());
+    }
+
+    @isTest
+    static void testScheduleRejectsAppointmentDateMismatch() {
+        List<C501_Appointment__c> appts = getTestAppointments();
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = appts[1].Date__c; // wrong date on purpose
+        ctrl.day1AppointmentId = appts[0].Id;
+        ctrl.schedule();
+        Test.stopTest();
+    
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(appts[1].Date__c, ctrl.day1Date);
+        System.assertEquals(appts[0].Id, ctrl.day1AppointmentId);
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testLoadDay1TimesRejectsThursdayForUnder60() {
+        Contact con = getTestContact(); // 2000-01-01, under 60
+        Date nextThursday = Date.today();
+        while (DateTime.newInstance(nextThursday, Time.newInstance(12,0,0,0)).format('u') != '4') {
+            nextThursday = nextThursday.addDays(1);
+        }
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = nextThursday;
+        ctrl.day1AppointmentId = 'x';
+        ctrl.day1TimeOptions = new List<SelectOption>{ new SelectOption('x', 'dummy') };
+        ctrl.loadDay1Times();
+        Test.stopTest();
+    
+        System.assertEquals(null, ctrl.day1Date);
+        System.assertEquals(null, ctrl.day1AppointmentId);
+        System.assertEquals(0, ctrl.day1TimeOptions.size());
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testLoadDay1TimesAllowsThursdayForSenior() {
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Contact senior = new Contact(
+            FirstName = 'Senior',
+            LastName = 'Person',
+            Birthdate = Date.newInstance(1950, 1, 1),
+            AccountId = acct.Id,
+            Email = 'senior@example.com'
+        );
+        insert senior;
+    
+        Date nextThursday = Date.today();
+        while (DateTime.newInstance(nextThursday, Time.newInstance(12,0,0,0)).format('u') != '4') {
+            nextThursday = nextThursday.addDays(1);
+        }
+    
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.contactRec = senior;
+        ctrl.searchContact = new Contact(LastName = senior.LastName, Birthdate = senior.Birthdate);
+        ctrl.day1Date = nextThursday;
+    
+        Test.startTest();
+        ctrl.loadDay1Times();
+        Test.stopTest();
+    
+        System.assertEquals(nextThursday, ctrl.day1Date);
+    }
+    
+    @isTest
+    static void testScheduleRejectsThursdayForUnder60() {
+        List<C501_Appointment__c> appts = getTestAppointments();
+        Date nextThursday = Date.today();
+        while (DateTime.newInstance(nextThursday, Time.newInstance(12,0,0,0)).format('u') != '4') {
+            nextThursday = nextThursday.addDays(1);
+        }
+    
+        C501_Appointment__c thursAppt = appts[0];
+        thursAppt.Date__c = nextThursday;
+        update thursAppt;
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = nextThursday;
+        ctrl.day1AppointmentId = thursAppt.Id;
+        ctrl.schedule();
+        Test.stopTest();
+    
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(null, ctrl.day1Date);
+        System.assertEquals(null, ctrl.day1AppointmentId);
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testScheduleRejectsDeletedAppointmentAndClearsDay1() {
+        List<C501_Appointment__c> appts = getTestAppointments();
+        Id deletedApptId = appts[0].Id;
+        delete appts[0];
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = Date.today().addDays(1);
+        ctrl.day1AppointmentId = String.valueOf(deletedApptId);
+        ctrl.schedule();
+        Test.stopTest();
+    
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(true, ApexPages.hasMessages());
+    }
+    
+    @isTest
+    static void testScheduleRejectsFullAppointment() {
+        Contact con = getTestContact();
+    
+        C501_Appointment__c appt = [
+            SELECT Id, Date__c, Maximum_Scheduled_Appointments__c
+            FROM C501_Appointment__c
+            ORDER BY Date__c
+            LIMIT 1
+        ];
+    
+        Integer maxAppts = Integer.valueOf(appt.Maximum_Scheduled_Appointments__c);
+    
+        List<Appointment_Scheduled_Request__c> requests = new List<Appointment_Scheduled_Request__c>();
+        for (Integer i = 0; i < maxAppts; i++) {
+            requests.add(new Appointment_Scheduled_Request__c(
+                Name = 'Existing Request ' + i,
+                Contact__c = con.Id,
+                Account__c = con.AccountId,
+                Appointment__c = appt.Id,
+                Appointment_Date__c = appt.Date__c,
+                Email__c = 'existing' + i + '@example.com'
+            ));
+        }
+        insert requests;
+    
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.day1Date = appt.Date__c;
+        ctrl.day1AppointmentId = appt.Id;
+        ctrl.schedule();
+        Test.stopTest();
+    
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(true, ApexPages.hasMessages());
     }
 
     @isTest

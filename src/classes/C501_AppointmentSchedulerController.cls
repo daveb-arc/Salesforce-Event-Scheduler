@@ -1,4 +1,4 @@
-public with sharing class C501_AppointmentSchedulerController {
+public without sharing class C501_AppointmentSchedulerController {
 
     public Integer step { get; set; }
 
@@ -75,6 +75,11 @@ public with sharing class C501_AppointmentSchedulerController {
         confirmationLines = new List<String>();
 
         tryLoadIncomingContact();
+
+        if (UserInfo.getUserType() != 'Guest') {
+            day1Date = Date.today();
+            day1DateText = day1Date.format();
+        }
     }
 
     private void tryLoadIncomingContact() {
@@ -153,7 +158,7 @@ public with sharing class C501_AppointmentSchedulerController {
             searchContact.LastName = value;
         }
     }
-        
+
     public PageReference findContact() {
         if (searchContact == null) {
             searchContact = new Contact();
@@ -199,20 +204,44 @@ public with sharing class C501_AppointmentSchedulerController {
     }
 
     public PageReference loadDay1Times() {
-        day1TimeOptions = getTimes(day1Date);
         day1AppointmentId = null;
+    
+        if (!validateSelectedDateForContact(day1Date, 'Day 1')) {
+            return null;
+        }
+        if (!validateThursdaySeniorOnly(day1Date, 'Day 1')) {
+            return null;
+        }
+    
+        day1TimeOptions = getTimes(day1Date);
         return null;
     }
 
     public PageReference loadDay2Times() {
-        day2TimeOptions = getTimes(day2Date);
         day2AppointmentId = null;
+
+        if (!validateSelectedDateForContact(day2Date, 'Day 2')) {
+            return null;
+        }
+        if (!validateThursdaySeniorOnly(day2Date, 'Day 2')) {
+            return null;
+        }
+
+        day2TimeOptions = getTimes(day2Date);
         return null;
     }
 
     public PageReference loadDay3Times() {
-        day3TimeOptions = getTimes(day3Date);
         day3AppointmentId = null;
+    
+        if (!validateSelectedDateForContact(day3Date, 'Day 3')) {
+            return null;
+        }
+        if (!validateThursdaySeniorOnly(day3Date, 'Day 3')) {
+            return null;
+        }
+    
+        day3TimeOptions = getTimes(day3Date);
         return null;
     }
 
@@ -282,7 +311,7 @@ public with sharing class C501_AppointmentSchedulerController {
             step = 2;
             return null;
         }
-
+    
         if (day1Date == null || String.isBlank(day1AppointmentId)) {
             ApexPages.addMessage(new ApexPages.Message(
                 ApexPages.Severity.ERROR,
@@ -290,7 +319,7 @@ public with sharing class C501_AppointmentSchedulerController {
             ));
             return null;
         }
-
+    
         if (showDay2) {
             if (day2Date == null || String.isBlank(day2AppointmentId)) {
                 ApexPages.addMessage(new ApexPages.Message(
@@ -299,15 +328,8 @@ public with sharing class C501_AppointmentSchedulerController {
                 ));
                 return null;
             }
-            if (day2Date == day1Date) {
-                ApexPages.addMessage(new ApexPages.Message(
-                    ApexPages.Severity.ERROR,
-                    'Day 2 must be a different date than Day 1.'
-                ));
-                return null;
-            }
         }
-
+    
         if (showDay3) {
             if (!showDay2) {
                 ApexPages.addMessage(new ApexPages.Message(
@@ -316,6 +338,7 @@ public with sharing class C501_AppointmentSchedulerController {
                 ));
                 return null;
             }
+    
             if (day3Date == null || String.isBlank(day3AppointmentId)) {
                 ApexPages.addMessage(new ApexPages.Message(
                     ApexPages.Severity.ERROR,
@@ -323,16 +346,49 @@ public with sharing class C501_AppointmentSchedulerController {
                 ));
                 return null;
             }
-            if (day3Date == day1Date || day3Date == day2Date) {
-                ApexPages.addMessage(new ApexPages.Message(
-                    ApexPages.Severity.ERROR,
-                    'Day 3 must be a different date than Day 1 and Day 2.'
-                ));
-                return null;
-            }
         }
-
+    
+        // Prevent same day on screen selections
+        if (showDay2 && day2Date != null && day2Date == day1Date) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay('Day 2');
+            return null;
+        }
+    
+        if (showDay3 && day3Date != null && day3Date == day1Date) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay('Day 3');
+            return null;
+        }
+    
+        if (showDay2 && showDay3 && day2Date != null && day3Date != null && day3Date == day2Date) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay('Day 3');
+            return null;
+        }
+    
+        // Re-run per-day validation as a final safety check
+        if (!validateSelectedDateForContact(day1Date, 'Day 1')) {
+            return null;
+        }
+        if (showDay2 && !validateSelectedDateForContact(day2Date, 'Day 2')) {
+            return null;
+        }
+        if (showDay3 && !validateSelectedDateForContact(day3Date, 'Day 3')) {
+            return null;
+        }
+    
         Set<String> appointmentIds = new Set<String>{ day1AppointmentId };
+    
         if (showDay2) {
             if (appointmentIds.contains(day2AppointmentId)) {
                 ApexPages.addMessage(new ApexPages.Message(
@@ -343,6 +399,7 @@ public with sharing class C501_AppointmentSchedulerController {
             }
             appointmentIds.add(day2AppointmentId);
         }
+    
         if (showDay3) {
             if (appointmentIds.contains(day3AppointmentId)) {
                 ApexPages.addMessage(new ApexPages.Message(
@@ -353,13 +410,28 @@ public with sharing class C501_AppointmentSchedulerController {
             }
             appointmentIds.add(day3AppointmentId);
         }
-
+    
+        if (!validateThursdaySeniorOnly(day1Date, 'Day 1')) {
+            return null;
+        }
+        if (showDay2 && !validateThursdaySeniorOnly(day2Date, 'Day 2')) {
+            return null;
+        }
+        if (showDay3 && !validateThursdaySeniorOnly(day3Date, 'Day 3')) {
+            return null;
+        }
+    
+        if (!validateMonthlyLimitWithPendingSelections()) {
+            return null;
+        }
+    
         Map<Id, C501_Appointment__c> apptById = new Map<Id, C501_Appointment__c>([
-            SELECT Id, Name, Date__c, Time__c, Summary__c, Appointments_Full__c
+            SELECT Id, Name, Date__c, Time__c, Summary__c, Appointments_Full__c, Maximum_Scheduled_Appointments__c
             FROM C501_Appointment__c
             WHERE Id IN :appointmentIds
+            FOR UPDATE
         ]);
-
+    
         if (!validateAppointmentChoice(apptById, day1AppointmentId, day1Date, 'Day 1')) {
             return null;
         }
@@ -369,23 +441,35 @@ public with sharing class C501_AppointmentSchedulerController {
         if (showDay3 && !validateAppointmentChoice(apptById, day3AppointmentId, day3Date, 'Day 3')) {
             return null;
         }
-
+    
+        if (!validateAppointmentStillAvailable(apptById, day1AppointmentId, day1Date, 'Day 1')) {
+            return null;
+        }
+        if (showDay2 && !validateAppointmentStillAvailable(apptById, day2AppointmentId, day2Date, 'Day 2')) {
+            return null;
+        }
+        if (showDay3 && !validateAppointmentStillAvailable(apptById, day3AppointmentId, day3Date, 'Day 3')) {
+            return null;
+        }
+    
         List<Appointment_Scheduled_Request__c> toInsert = new List<Appointment_Scheduled_Request__c>();
         confirmationLines = new List<String>();
-
-        addRow(toInsert, apptById.get((Id) day1AppointmentId), 'Day 1');
+    
+        addRow(toInsert, apptById.get((Id)day1AppointmentId), 'Day 1');
+    
         if (showDay2) {
-            addRow(toInsert, apptById.get((Id) day2AppointmentId), 'Day 2');
+            addRow(toInsert, apptById.get((Id)day2AppointmentId), 'Day 2');
         }
+    
         if (showDay3) {
-            addRow(toInsert, apptById.get((Id) day3AppointmentId), 'Day 3');
+            addRow(toInsert, apptById.get((Id)day3AppointmentId), 'Day 3');
         }
-
+    
         insert toInsert;
         step = 4;
         return null;
     }
-
+    
     private Boolean validateAppointmentChoice(
         Map<Id, C501_Appointment__c> apptById,
         String apptId,
@@ -420,13 +504,135 @@ public with sharing class C501_AppointmentSchedulerController {
         return true;
     }
 
+    private Boolean validateAppointmentStillAvailable(
+        Map<Id, C501_Appointment__c> apptById,
+        String apptId,
+        Date expectedDate,
+        String dayLabel
+    ) {
+        if (String.isBlank(apptId)) {
+            return true;
+        }
+    
+        if (!apptById.containsKey((Id)apptId)) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                dayLabel + ' is no longer available. Please select a different appointment.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        C501_Appointment__c appt = apptById.get((Id)apptId);
+    
+        if (appt.Date__c != expectedDate) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                dayLabel + ' is no longer available for the selected date. Please choose another date/time.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        Integer existingCount = [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Appointment__c = :appt.Id
+        ];
+    
+        Integer maxAllowed = appt.Maximum_Scheduled_Appointments__c == null
+            ? 0
+            : Integer.valueOf(appt.Maximum_Scheduled_Appointments__c);
+    
+        if ((appt.Appointments_Full__c == true) ||
+            (maxAllowed > 0 && existingCount >= maxAllowed)) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                dayLabel + ' is full. Please select a different appointment time.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        return true;
+    }
+
+    private Integer getAgeOnDate(Date birthDate, Date asOfDate) {
+        if (birthDate == null || asOfDate == null) {
+            return null;
+        }
+
+        Integer age = asOfDate.year() - birthDate.year();
+
+        if (asOfDate.month() < birthDate.month() ||
+            (asOfDate.month() == birthDate.month() && asOfDate.day() < birthDate.day())) {
+            age--;
+        }
+
+        return age;
+    }
+
+    private Boolean isThursday(Date d) {
+        if (d == null) {
+            return false;
+        }
+
+        // Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6, Saturday=7
+        Integer dayOfWeek = Integer.valueOf(
+            DateTime.newInstance(d, Time.newInstance(12, 0, 0, 0)).format('u')
+        );
+
+        // format('u') is ISO weekday: Monday=1 ... Sunday=7
+        // Thursday = 4
+        return dayOfWeek == 4;
+    }
+
+    private Boolean validateThursdaySeniorOnly(Date selectedDate, String dayLabel) {
+        if (selectedDate == null) {
+            return true;
+        }
+
+        Date birthDateToUse = null;
+
+        if (contactRec != null && contactRec.Birthdate != null) {
+            birthDateToUse = contactRec.Birthdate;
+        } else if (searchContact != null && searchContact.Birthdate != null) {
+            birthDateToUse = searchContact.Birthdate;
+        } else if (birthDate != null) {
+            birthDateToUse = birthDate;
+        }
+
+        if (!isThursday(selectedDate)) {
+            return true;
+        }
+
+        Integer age = getAgeOnDate(birthDateToUse, selectedDate);
+
+        if (age == null || age < 60) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                dayLabel + ' is only available for seniors age 60 and over.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+
+        return true;
+    }
+
     private void addRow(List<Appointment_Scheduled_Request__c> rows, C501_Appointment__c appt, String dayLabel) {
     
+        // Remove when want to enable in production - this triggers the flow to create C501_Appointment_Scheduled__c record
+        Boolean createAppointment = Test.isRunningTest();
+
         rows.add(new Appointment_Scheduled_Request__c(
             Name = contactRec.Name + ' ' + dayLabel,
-            Contact_Id__c = contactRec.Id,
-            Account_Id__c = contactRec.AccountId,
+            Contact__c = contactRec.Id,
+            Account__c = contactRec.AccountId,
+            Appointment__c = appt.Id,
             Appointment_Id__c = appt.Id,
+            Appointment_Date__c = appt.Date__c,
+            Create_Appointment__c = createAppointment,
             Email__c = email
         ));
 
@@ -435,6 +641,173 @@ public with sharing class C501_AppointmentSchedulerController {
             : appt.Summary__c;
         confirmationLines.add(dayLabel + ': ' + String.valueOf(appt.Date__c) + ' - ' + label);
     }
+
+    private Boolean validateMonthlyLimitWithPendingSelections() {
+        if (contactRec == null) {
+            return true;
+        }
+    
+        List<Date> selectedDates = new List<Date>();
+        if (day1Date != null) selectedDates.add(day1Date);
+        if (showDay2 && day2Date != null) selectedDates.add(day2Date);
+        if (showDay3 && day3Date != null) selectedDates.add(day3Date);
+    
+        if (selectedDates.isEmpty()) {
+            return true;
+        }
+    
+        Id contactId = contactRec.Id;
+    
+        Map<String, Integer> selectedPerMonth = new Map<String, Integer>();
+        for (Date d : selectedDates) {
+            String monthKey = String.valueOf(d.year()) + '-' + String.valueOf(d.month());
+            Integer currentCount = selectedPerMonth.containsKey(monthKey) ? selectedPerMonth.get(monthKey) : 0;
+            selectedPerMonth.put(monthKey, currentCount + 1);
+        }
+    
+        for (String monthKey : selectedPerMonth.keySet()) {
+            List<String> parts = monthKey.split('-');
+            Integer y = Integer.valueOf(parts[0]);
+            Integer m = Integer.valueOf(parts[1]);
+    
+            Date firstOfMonth = Date.newInstance(y, m, 1);
+            Date firstOfNextMonth = firstOfMonth.addMonths(1);
+    
+            Integer existingCount = [
+                SELECT COUNT()
+                FROM Appointment_Scheduled_Request__c
+                WHERE Contact__c = :contactId
+                  AND Appointment_Date__c >= :firstOfMonth
+                  AND Appointment_Date__c < :firstOfNextMonth
+            ];
+    
+            Integer pendingCount = selectedPerMonth.get(monthKey);
+    
+            if (existingCount + pendingCount > 3) {
+                ApexPages.addMessage(new ApexPages.Message(
+                    ApexPages.Severity.ERROR,
+                    'You already have appointments in this month. You can only have a maximum of 3 appointments scheduled per month.'
+                ));
+                return false;
+            }
+        }
+    
+        return true;
+    }
+
+    private Boolean validateSelectedDateForContact(Date selectedDate, String dayLabel) {
+        if (contactRec == null || selectedDate == null) {
+            return true;
+        }
+    
+        Id contactId = contactRec.Id;
+    
+        // Rule 0: same day already selected on screen
+        if (dayLabel != 'Day 1' && day1Date != null && day1Date == selectedDate) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        if (dayLabel != 'Day 2' && day2Date != null && day2Date == selectedDate) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        if (dayLabel != 'Day 3' && day3Date != null && day3Date == selectedDate) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You cannot have more than 1 appointment on the same day.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        // Rule 1: already has appointment on same day in database
+        Integer sameDayCount = [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :contactId
+              AND Appointment_Date__c = :selectedDate
+        ];
+    
+        if (sameDayCount > 0) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You already have an appointment on that day.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        // Rule 2: max 3 appointments in same month
+        Date firstOfMonth = Date.newInstance(selectedDate.year(), selectedDate.month(), 1);
+        Date firstOfNextMonth = firstOfMonth.addMonths(1);
+    
+        Integer dbMonthCount = [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :contactId
+              AND Appointment_Date__c >= :firstOfMonth
+              AND Appointment_Date__c < :firstOfNextMonth
+        ];
+    
+        Integer selectedMonthCount = 0;
+    
+        if (dayLabel != 'Day 1' && day1Date != null &&
+            day1Date.year() == selectedDate.year() &&
+            day1Date.month() == selectedDate.month()) {
+            selectedMonthCount++;
+        }
+    
+        if (dayLabel != 'Day 2' && day2Date != null &&
+            day2Date.year() == selectedDate.year() &&
+            day2Date.month() == selectedDate.month()) {
+            selectedMonthCount++;
+        }
+    
+        if (dayLabel != 'Day 3' && day3Date != null &&
+            day3Date.year() == selectedDate.year() &&
+            day3Date.month() == selectedDate.month()) {
+            selectedMonthCount++;
+        }
+    
+        Integer totalMonthCount = dbMonthCount + selectedMonthCount + 1;
+    
+        if (totalMonthCount > 3) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'You already have appointments in that month. You can only have a maximum of 3 appointments scheduled in the same month.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+    
+        return true;
+    }
+
+    private void clearSelectedDay(String dayLabel) {
+        if (dayLabel == 'Day 1') {
+            day1Date = null;
+            day1AppointmentId = null;
+            day1TimeOptions = new List<SelectOption>();
+        } else if (dayLabel == 'Day 2') {
+            day2Date = null;
+            day2AppointmentId = null;
+            day2TimeOptions = new List<SelectOption>();
+        } else if (dayLabel == 'Day 3') {
+            day3Date = null;
+            day3AppointmentId = null;
+            day3TimeOptions = new List<SelectOption>();
+        }
+    }    
 
     private Date parseDateFromInput(String value) {
         if (String.isBlank(value)) {
