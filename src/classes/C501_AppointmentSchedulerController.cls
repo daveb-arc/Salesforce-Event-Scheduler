@@ -35,17 +35,17 @@ public without sharing class C501_AppointmentSchedulerController {
     }
 
     public String day1DateText {
-        get { return formatDateForInput(day1Date); }
+        get { return formatDateForDisplay(day1Date); }
         set { day1Date = parseDateFromInput(value); }
     }
-
+    
     public String day2DateText {
-        get { return formatDateForInput(day2Date); }
+        get { return formatDateForDisplay(day2Date); }
         set { day2Date = parseDateFromInput(value); }
     }
-
+    
     public String day3DateText {
-        get { return formatDateForInput(day3Date); }
+        get { return formatDateForDisplay(day3Date); }
         set { day3Date = parseDateFromInput(value); }
     }
 
@@ -207,42 +207,123 @@ public without sharing class C501_AppointmentSchedulerController {
         day1AppointmentId = null;
     
         if (!validateSelectedDateForContact(day1Date, 'Day 1')) {
-            return null;
-        }
-        if (!validateThursdaySeniorOnly(day1Date, 'Day 1')) {
+            day1TimeOptions = new List<SelectOption>();
             return null;
         }
     
-        day1TimeOptions = getTimes(day1Date);
+        day1TimeOptions = buildTimeOptionsForDate(day1Date, 'Day 1');
         return null;
     }
-
+    
     public PageReference loadDay2Times() {
         day2AppointmentId = null;
-
+    
         if (!validateSelectedDateForContact(day2Date, 'Day 2')) {
+            day2TimeOptions = new List<SelectOption>();
             return null;
         }
-        if (!validateThursdaySeniorOnly(day2Date, 'Day 2')) {
-            return null;
-        }
-
-        day2TimeOptions = getTimes(day2Date);
+    
+        day2TimeOptions = buildTimeOptionsForDate(day2Date, 'Day 2');
         return null;
     }
-
+    
     public PageReference loadDay3Times() {
         day3AppointmentId = null;
     
         if (!validateSelectedDateForContact(day3Date, 'Day 3')) {
-            return null;
-        }
-        if (!validateThursdaySeniorOnly(day3Date, 'Day 3')) {
+            day3TimeOptions = new List<SelectOption>();
             return null;
         }
     
-        day3TimeOptions = getTimes(day3Date);
+        day3TimeOptions = buildTimeOptionsForDate(day3Date, 'Day 3');
         return null;
+    }
+
+    private List<SelectOption> buildTimeOptionsForDate(Date selectedDate, String dayLabel) {
+        List<SelectOption> opts = new List<SelectOption>();
+
+        if (selectedDate == null) {
+            return opts;
+        }
+
+        Date birthdate = null;
+        if (contactRec != null) {
+            birthdate = contactRec.Birthdate;
+        } else if (searchContact != null) {
+            birthdate = searchContact.Birthdate;
+        }
+
+        Boolean isSenior = isSixtyOrOlder(birthdate);
+        Boolean isThursday =
+            Integer.valueOf(DateTime.newInstance(selectedDate, Time.newInstance(12, 0, 0, 0)).format('u')) == 4;
+
+        List<C501_Appointment__c> appts = [
+            SELECT Id, Name, Date__c, Time__c, Available_Time__c,
+                Appointments_Full__c, Maximum_Scheduled_Appointments__c
+            FROM C501_Appointment__c
+            WHERE Date__c = :selectedDate
+            AND Enable__c = true
+            ORDER BY Available_Time__c, Time__c, Name
+        ];
+
+        for (C501_Appointment__c appt : appts) {
+            if (appt.Appointments_Full__c == true) {
+                continue;
+            }
+
+            if (isThursday && !isSenior && isThursdaySeniorOnlyTime(appt.Time__c)) {
+                continue;
+            }
+
+            String label = appt.Time__c;
+            if (appt.Maximum_Scheduled_Appointments__c != null) {
+                label += ' (' + String.valueOf(appt.Maximum_Scheduled_Appointments__c) + ' Remaining)';
+            }
+
+            opts.add(new SelectOption(appt.Id, label));
+        }
+
+        return opts;
+    }
+
+    private Boolean isSixtyOrOlder(Date birthdate) {
+        if (birthdate == null) {
+            return false;
+        }
+        Integer age = birthdate.daysBetween(Date.today()) / 365;
+        return age >= 60;
+    }
+
+    private Boolean isThursdaySeniorOnlyTime(String timeText) {
+        if (String.isBlank(timeText)) {
+            return false;
+        }
+    
+        Integer mins = parseTimeTextToMinutes(timeText);
+    
+        // 10:00 AM up to but not including 12:15 PM
+        return mins >= (10 * 60) && mins < (12 * 60 + 15);
+    }
+    
+    private Integer parseTimeTextToMinutes(String timeText) {
+        String t = timeText.trim().toUpperCase();
+        Boolean isPm = t.endsWith('PM');
+        Boolean isAm = t.endsWith('AM');
+    
+        t = t.replace('AM', '').replace('PM', '').trim();
+        List<String> parts = t.split(':');
+    
+        Integer hourVal = Integer.valueOf(parts[0]);
+        Integer minuteVal = Integer.valueOf(parts[1]);
+    
+        if (isPm && hourVal != 12) {
+            hourVal += 12;
+        }
+        if (isAm && hourVal == 12) {
+            hourVal = 0;
+        }
+    
+        return (hourVal * 60) + minuteVal;
     }
 
     public PageReference toggleDay2() {
@@ -410,17 +491,7 @@ public without sharing class C501_AppointmentSchedulerController {
             }
             appointmentIds.add(day3AppointmentId);
         }
-    
-        if (!validateThursdaySeniorOnly(day1Date, 'Day 1')) {
-            return null;
-        }
-        if (showDay2 && !validateThursdaySeniorOnly(day2Date, 'Day 2')) {
-            return null;
-        }
-        if (showDay3 && !validateThursdaySeniorOnly(day3Date, 'Day 3')) {
-            return null;
-        }
-    
+     
         if (!validateMonthlyLimitWithPendingSelections()) {
             return null;
         }
@@ -585,39 +656,6 @@ public without sharing class C501_AppointmentSchedulerController {
         // format('u') is ISO weekday: Monday=1 ... Sunday=7
         // Thursday = 4
         return dayOfWeek == 4;
-    }
-
-    private Boolean validateThursdaySeniorOnly(Date selectedDate, String dayLabel) {
-        if (selectedDate == null) {
-            return true;
-        }
-
-        Date birthDateToUse = null;
-
-        if (contactRec != null && contactRec.Birthdate != null) {
-            birthDateToUse = contactRec.Birthdate;
-        } else if (searchContact != null && searchContact.Birthdate != null) {
-            birthDateToUse = searchContact.Birthdate;
-        } else if (birthDate != null) {
-            birthDateToUse = birthDate;
-        }
-
-        if (!isThursday(selectedDate)) {
-            return true;
-        }
-
-        Integer age = getAgeOnDate(birthDateToUse, selectedDate);
-
-        if (age == null || age < 60) {
-            ApexPages.addMessage(new ApexPages.Message(
-                ApexPages.Severity.ERROR,
-                dayLabel + ' is only available for seniors age 60 and over.'
-            ));
-            clearSelectedDay(dayLabel);
-            return false;
-        }
-
-        return true;
     }
 
     private void addRow(List<Appointment_Scheduled_Request__c> rows, C501_Appointment__c appt, String dayLabel) {
@@ -792,7 +830,7 @@ public without sharing class C501_AppointmentSchedulerController {
     
         return true;
     }
-
+        
     private void clearSelectedDay(String dayLabel) {
         if (dayLabel == 'Day 1') {
             day1Date = null;
@@ -837,7 +875,7 @@ public without sharing class C501_AppointmentSchedulerController {
         if (d == null) {
             return null;
         }
-
+    
         return String.valueOf(d.year()) + '-' +
             twoDigit(d.month()) + '-' +
             twoDigit(d.day());
@@ -846,4 +884,14 @@ public without sharing class C501_AppointmentSchedulerController {
     private String twoDigit(Integer n) {
         return n < 10 ? '0' + String.valueOf(n) : String.valueOf(n);
     }
+
+    private String formatDateForDisplay(Date d) {
+        if (d == null) {
+            return null;
+        }
+    
+        return twoDigit(d.month()) + '/' +
+               twoDigit(d.day()) + '/' +
+               String.valueOf(d.year());
+    }    
 }
