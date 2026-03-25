@@ -677,8 +677,19 @@ public without sharing class C501_AppointmentSchedulerController {
         String label = String.isBlank(appt.Summary__c)
             ? (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
             : appt.Summary__c;
-        confirmationLines.add(dayLabel + ': ' + String.valueOf(appt.Date__c) + ' - ' + label);
-    }
+
+        String formattedDate = '';
+        if (appt.Date__c != null) {
+            String mm = appt.Date__c.month() < 10 ? '0' + String.valueOf(appt.Date__c.month()) : String.valueOf(appt.Date__c.month());
+            String dd = appt.Date__c.day() < 10 ? '0' + String.valueOf(appt.Date__c.day()) : String.valueOf(appt.Date__c.day());
+            String yyyy = String.valueOf(appt.Date__c.year());
+            formattedDate = mm + '/' + dd + '/' + yyyy;
+        }
+        
+        confirmationLines.add(
+            dayLabel + ': ' + formattedDate + ' - ' + label
+        );
+   }
 
     private Boolean validateMonthlyLimitWithPendingSelections() {
         if (contactRec == null) {
