@@ -1,109 +1,534 @@
-<apex:page showHeader="False" >
-    <style> 
-  
-        .interviewFormChoicesWithHelp label
-        {
-            position:relative;
-            top:-19px;
-            left: 30px;
+<apex:page controller="C501_AppointmentSchedulerController"
+           lightningStylesheets="true"
+           showHeader="false"
+           sidebar="false"
+           docType="html-5.0">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- jQuery UI -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"/>
+
+    <style>
+        header, footer { background-color: white; }
+        body {
+            background-color: #FFF;
+            font: 16px/1.4em "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 20.8px;
+            color: #222;
         }
-    
-        header, footer {
-            background-color: white;
-        }
-        
-        body { 
-           background-color: #FFF; 
-           font: 16px/1.4em "Helvetica Neue",Helvetica,Arial,sans-serif;
-           line-height: 20.8px;
-        } 
-        
         input, textarea, select, button {
-           font: 16px/1.4em "Helvetica Neue",Helvetica,Arial,sans-serif;
-           line-height: 20.8px;
+            font: 16px/1.4em "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 20.8px;
         }
-            
-        body .bPageBlock, body #bodyCell .bResource .secondaryPalette, body .secondaryPalette.bPageBlock, body .individualPalette .secondaryPalette.bPageBlock, body .bodyDiv .genericTable, body .genericPageBlockTable, body .bodyDiv .bSubBlock, body .bComponentBlock .bPageBlock, body .bMyDashboard .bPageBlock, body.rlHoverFrame .bPageBlock, body.subjectSelectionPopup div.choicesBox, body.lookupTab .secondaryPalette.bPageBlock, body.popupTab .secondaryPalette.bPageBlock, body.UserTagStatsPage .secondaryPalette.bPageBlock {
+        body .bPageBlock,
+        body #bodyCell .bResource .secondaryPalette,
+        body .secondaryPalette.bPageBlock,
+        body .individualPalette .secondaryPalette.bPageBlock,
+        body .bodyDiv .genericTable,
+        body .genericPageBlockTable,
+        body .bodyDiv .bSubBlock,
+        body .bComponentBlock .bPageBlock,
+        body .bMyDashboard .bPageBlock,
+        body.rlHoverFrame .bPageBlock,
+        body.subjectSelectionPopup div.choicesBox,
+        body.lookupTab .secondaryPalette.bPageBlock,
+        body.popupTab .secondaryPalette.bPageBlock,
+        body.UserTagStatsPage .secondaryPalette.bPageBlock {
             background: #FFF;
         }
-    
-        .pbButton .FlowFinishBtn
-        {
-          display:none;
+
+        .button-row-center {
+            text-align: center;
+            margin: 20px 0;
         }
-            
-        .pbButton .FlowNextBtn
-        {
-          color:#0b7577;
-          text-align:center;
+        .scheduler-wrap {
+            max-width: 760px;
+            margin: 0 auto;
         }
-    
-        .pbButton .FlowPreviousBtn
-        {
-          color:#0b7577;
-          text-align:center;
+        .scheduler-title {
+            font-size: 28px;
+            margin: 10px 0 20px 0;
+            font-weight: 700;
+            line-height: 1.3;
         }
-    
-        .pbButtonb .FlowFinishBtn
-        {
-          display:none;
+        .scheduler-subtitle {
+            font-size: 22px;
+            margin: 0 0 12px 0;
+            font-weight: 700;
+            line-height: 1.4;
         }
-    
-        .pbButtonb .FlowNextBtn
-        {
-          color:#0b7577;
-          text-align:center;
+        .scheduler-copy {
+            font-size: 20px;
+            margin: 0 0 16px 0;
+            line-height: 1.7;
         }
-    
-        .pbButtonb .FlowPreviousBtn
-        {
-          color:#0b7577;
-          text-align:center;
+        .scheduler-help {
+            font-size: 18px;
+            margin: 0 0 14px 0;
+            line-height: 1.7;
+        }
+        .scheduler-confirm-row {
+            font-size: 18px;
+            margin: 0 0 12px 0;
+            line-height: 1.6;
         }
 
-        ul li{
-          font-size:12px;
+        .scheduler-button {
+            background: #f05a28;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: 700;
+            padding: 18px 28px;
+            cursor: pointer;
+            box-shadow:
+                0 4px 10px rgba(0,0,0,0.25),
+                0 0 0 6px rgba(240, 90, 40, 0.25);
         }
-        
-        /* unvisited link */
-        a:link {
+        .scheduler-button.large-button {
+            font-size: 22px;
+            padding: 18px 28px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .scheduler-button:hover {
+            background: #d94f22;
+        }
+        .scheduler-button:active {
+            transform: scale(0.98);
+        }
+        .scheduler-button.secondary {
+            background: #666;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.20);
+        }
+        .service-hours-box {
+            background: #f9f9f9;
+            border: 2px solid #d8dde6;
+            padding: 16px;
+            margin: 20px auto;        /* centers the box */
+            max-width: 500px;         /* keeps it from stretching too wide */
+            text-align: center;       /* centers title */
+        }
+
+        .service-hours-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .service-hours-list {
+            font-size: 18px;
+            line-height: 1.8;
+            text-align: left;         /* keeps list readable */
+            display: inline-block;    /* allows centering of block */
+        }
+        .day-section {
+            margin-bottom: 20px;
+        }
+        .day-checkbox {
+            display: block;
+            margin: 8px 0 16px 0;
+        }
+        .field-label {
+            display: block;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            font-size: 20px;
+        }
+        .field-help {
+            display: block;
+            margin: 4px 0 10px 0;
+            font-size: 15px;
+            color: #555;
+        }
+        .full-width-select,
+        .full-width-input {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font-size: 18px;
+            min-height: 42px;
+        }
+        .check-label {
+            font-size: 18px;
+            font-weight: 700;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        .welcome-box {
+            background: #fff;
+            border: 1px solid #d8dde6;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .welcome-section-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 18px 0 10px 0;
+            line-height: 1.4;
+        }
+        .welcome-list {
+            margin: 0 0 16px 28px;
+            font-size: 20px;
+            line-height: 1.8;
+        }
+        .welcome-list li {
+            margin-bottom: 8px;
+        }
+        .welcome-divider {
+            border: 0;
+            border-top: 2px solid #d8dde6;
+            margin: 18px 0;
+        }
+
+        .lookup-fields {
+            padding: 12px 0;
+        }
+        .lookup-field-row {
+            margin-bottom: 18px;
+        }
+
+        a:link, a:visited {
             color: blue;
         }
-        
-        /* visited link */
-        a:visited {
-            color: blue;
-        }
-        
-        /* mouse over link */
-        a:hover {
-            color: blue;
-        }
-        
-        /* selected link */
-        a:active {
-            color: blue;
+
+        footer a {
+            display: inline-block;
+            margin: 4px 0;
         }        
-                
     </style>
 
     <header>
-        <table style="width:500px"><tr>
-            <td aligh="center" style="width:500px;text-align: center;"><img src="{!$Resource.Logo_Appointment_Schedule}" height="100px"/></td>
-        </tr></table>
+        <div class="scheduler-wrap" style="padding:15px 0 5px 0;">
+            <img src="{!$Resource.Logo_Appointment_Schedule}" height="100px"/>
+        </div>
     </header>
 
-    <flow:interview name="C501_Appointment_Schedule"/>
-    
+    <div class="scheduler-wrap">
+        <apex:form id="frm">
+            <apex:pageMessages id="msgs"/>
+
+            <apex:outputPanel rendered="{!isStep1}">
+                <div class="scheduler-title">Welcome to the White Center Food Bank Appointment Scheduler</div>
+
+                <div style="text-align:center; margin:25px 0;">
+                    <apex:commandButton value="👉 Continue to Scheduling →"
+                                        action="{!startLookup}"
+                                        rerender="frm"
+                                        styleClass="scheduler-button large-button"/>
+                </div>
+
+                <div class="welcome-box">
+                    <div class="welcome-section-title">New customers</div>
+                    <div class="scheduler-copy">
+                        Visit us during distribution hours<br/>
+                        請在分配時間內光臨。<br/>
+                        Xin vui lòng đến trong thời gian phân phối<br/>
+                        សូមមកទស្សនាយើងក្នុងអំឡុងម៉ោងចែកចាយ<br/>
+                        Visítanos durante el horario de distribución
+                    </div>
+
+                    <div class="welcome-section-title">Registration hours</div>
+                    <ul class="welcome-list">
+                        <li><strong>Monday:</strong> 12:00 pm - 3:00 pm</li>
+                        <li><strong>Wednesday:</strong> 10:00 am - 1:00 pm</li>
+                        <li><strong>Thursday:</strong> 10:00 am - 12:00 pm (for seniors age 60 and over only)</li>
+                        <li><strong>Thursday:</strong> 12:15 pm - 1:30 pm (for customers of all ages)</li>
+                        <li><strong>Friday:</strong> 10:00 am - 1:00 pm</li>
+                    </ul>
+
+                    <div class="welcome-section-title">Address</div>
+                    <div class="scheduler-copy">
+                        10016 16th Avenue Southwest<br/>
+                        Seattle, WA 98146
+                    </div>
+
+                    <hr class="welcome-divider"/>
+
+                    <div class="welcome-section-title">Returning customers</div>
+                    <div class="scheduler-copy">
+                        Click <strong>Continue</strong>. Then enter your Last Name and Birthdate to schedule an appointment.
+                    </div>
+
+                    <hr class="welcome-divider"/>
+
+                    <div class="welcome-section-title">Need help?</div>
+                    <div class="scheduler-copy">
+                        Please call <strong>(206) 762-2848</strong><br/>
+                        Monday through Friday, 8:00 a.m. - 4:00 p.m.
+                    </div>
+                </div>
+
+                <apex:pageBlock>
+                    <apex:pageBlockButtons location="bottom">
+                        <apex:commandButton value="👉 Continue to Scheduling →"
+                                            action="{!startLookup}"
+                                            rerender="frm"
+                                            styleClass="scheduler-button large-button"/>
+                    </apex:pageBlockButtons>
+                </apex:pageBlock>
+            </apex:outputPanel>
+
+            <apex:outputPanel rendered="{!isStep2}">
+                <div class="scheduler-title">Find your record</div>
+                <div class="scheduler-copy">Please provide your Last Name and Birthdate to continue.</div>
+
+                <apex:pageBlock mode="edit">
+                    <div class="lookup-fields">
+                        <div class="lookup-field-row">
+                            <apex:outputLabel value="Last Name"
+                                              styleClass="field-label"
+                                              for="searchLastNameInput"/>
+                            <apex:inputText id="searchLastNameInput"
+                                            value="{!searchLastNameText}"
+                                            styleClass="full-width-input"/>
+                        </div>
+
+                        <div class="lookup-field-row">
+                            <apex:outputLabel value="Birthdate"
+                                              styleClass="field-label"
+                                              for="searchBirthDateInput"/>
+                            <apex:inputText id="searchBirthDateInput"
+                                            value="{!searchBirthDateText}"
+                                            html-type="date"
+                                            html-max="{!todayIso}"
+                                            styleClass="full-width-input"/>
+                        </div>
+                        <div class="field-help">
+                            Enter a date or click the calendar icon to choose a date.
+                        </div>                        
+                    </div>
+
+                    <div class="button-row-center">
+                        <apex:commandButton value="Find Appointments →"
+                                            action="{!findContact}"
+                                            rerender="frm"
+                                            oncomplete="initDatePickers();"
+                                            styleClass="scheduler-button large-button"/>
+                    </div>
+                </apex:pageBlock>
+            </apex:outputPanel>
+
+            <apex:outputPanel rendered="{!isStep3}">
+                <div class="scheduler-subtitle">Hello {!contactRec.FirstName},</div>
+                <div class="scheduler-copy">Please select up to 3 different appointment days and a time for each selected day.</div>
+                <div class="scheduler-help">All selected dates must be different. Day 1 is required. Day 2 and Day 3 are optional.</div>
+                <div class="scheduler-help">Enter an email address if you would like an email confirmation.</div>
+
+                <apex:pageBlock mode="edit">
+                    <apex:pageBlockSection columns="1">
+                        <apex:outputPanel layout="block" styleClass="day-section">
+
+                            <apex:outputLabel value="Select Day 1" styleClass="field-label" for="day1Date"/>
+
+                            <apex:inputText id="day1Date"
+                                            value="{!day1DateText}"
+                                            html-placeholder="mm/dd/yyyy"
+                                            styleClass="full-width-input date-input appt-date day1">
+                                <apex:actionSupport event="onchange"
+                                                    action="{!loadDay1Times}"
+                                                    rerender="frm"
+                                                    oncomplete="initDatePickers();"/>
+                            </apex:inputText>
+
+                            <div class="field-help">
+                                Enter a date as mm/dd/yyyy or click to choose from the calendar.
+                            </div>
+
+                            <apex:outputPanel id="day1Times" layout="block">
+                                <apex:outputLabel value="Select Time" styleClass="field-label" for="day1Time"/>
+                                <apex:selectList id="day1Time" value="{!day1AppointmentId}" size="1" styleClass="full-width-select">
+                                    <apex:selectOptions value="{!day1TimeOptions}"/>
+                                </apex:selectList>
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+
+                        <apex:outputPanel layout="block" styleClass="day-checkbox">
+                            <apex:inputCheckbox value="{!showDay2}">
+                                <apex:actionSupport event="onclick"
+                                                    action="{!toggleDay2}"
+                                                    rerender="frm"
+                                                    oncomplete="initDatePickers();"/>
+                            </apex:inputCheckbox>
+                            <span class="check-label">Click box to select another appointment</span>
+                        </apex:outputPanel>
+
+                        <apex:outputPanel rendered="{!showDay2}">
+                            <apex:outputPanel layout="block" styleClass="day-section">
+                                <apex:outputLabel value="Select Day 2" styleClass="field-label" for="day2Date"/>
+
+                                <apex:inputText id="day2Date"
+                                                value="{!day2DateText}"
+                                                html-placeholder="mm/dd/yyyy"
+                                                styleClass="full-width-input date-input appt-date day2">
+                                    <apex:actionSupport event="onchange"
+                                                        action="{!loadDay2Times}"
+                                                        rerender="frm"
+                                                        oncomplete="initDatePickers();"/>
+                                </apex:inputText>
+
+                                <div class="field-help">
+                                    Enter a date as mm/dd/yyyy or click to choose from the calendar.
+                                </div>
+
+                                <apex:outputPanel id="day2Times" layout="block">
+                                    <apex:outputLabel value="Select Time" styleClass="field-label" for="day2Time"/>
+                                    <apex:selectList id="day2Time" value="{!day2AppointmentId}" size="1" styleClass="full-width-select">
+                                        <apex:selectOptions value="{!day2TimeOptions}"/>
+                                    </apex:selectList>
+                                </apex:outputPanel>
+                            </apex:outputPanel>
+
+                            <apex:outputPanel layout="block" styleClass="day-checkbox">
+                                <apex:inputCheckbox value="{!showDay3}">
+                                    <apex:actionSupport event="onclick"
+                                                        action="{!toggleDay3}"
+                                                        rerender="frm"
+                                                        oncomplete="initDatePickers();"/>
+                                </apex:inputCheckbox>
+                                <span class="check-label">Click box to select another appointment</span>
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+
+                        <apex:outputPanel rendered="{!showDay3}">
+                            <apex:outputPanel layout="block" styleClass="day-section">
+                                <apex:outputLabel value="Select Day 3" styleClass="field-label" for="day3Date"/>
+
+                                <apex:inputText id="day3Date"
+                                                value="{!day3DateText}"
+                                                html-placeholder="mm/dd/yyyy"
+                                                styleClass="full-width-input date-input appt-date day3">
+                                    <apex:actionSupport event="onchange"
+                                                        action="{!loadDay3Times}"
+                                                        rerender="frm"
+                                                        oncomplete="initDatePickers();"/>
+                                </apex:inputText>
+
+                                <div class="field-help">
+                                    Enter a date as mm/dd/yyyy or click to choose from the calendar.
+                                </div>
+
+                                <apex:outputPanel id="day3Times" layout="block">
+                                    <apex:outputLabel value="Select Time" styleClass="field-label" for="day3Time"/>
+                                    <apex:selectList id="day3Time" value="{!day3AppointmentId}" size="1" styleClass="full-width-select">
+                                        <apex:selectOptions value="{!day3TimeOptions}"/>
+                                    </apex:selectList>
+                                </apex:outputPanel>
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+
+                        <div style="margin-top:15px;">
+                            <apex:outputLabel value="Email" styleClass="field-label"/>
+                            <apex:inputText value="{!email}" styleClass="full-width-input"/>
+                        </div>
+                    </apex:pageBlockSection>
+
+                    <div class="button-row-center">
+                        <apex:commandButton value="Schedule Appointment(s)"
+                                            action="{!schedule}"
+                                            rerender="frm"
+                                            oncomplete="initDatePickers();"
+                                            styleClass="scheduler-button large-button"/>
+                    </div>
+                </apex:pageBlock>
+            </apex:outputPanel>
+
+            <apex:outputPanel rendered="{!isStep4}">
+                <div class="scheduler-title">Success! Your appointment selection has been scheduled.</div>
+                <apex:pageBlock>
+                    <div class="scheduler-confirm-row"><b>Name:</b> {!contactRec.Name}</div>
+                    <apex:repeat value="{!confirmationLines}" var="line">
+                        <div class="scheduler-confirm-row">{!line}</div>
+                    </apex:repeat>
+                    <div class="scheduler-confirm-row"><b>Email:</b> {!email}</div>
+                    <div class="scheduler-confirm-row"><b>Where:</b></div>
+                    <div class="scheduler-confirm-row">
+                        <a href="https://www.whitecenterfoodbank.org/contact/" target="_blank">White Center Food Bank</a>
+                    </div>
+                    <div class="scheduler-confirm-row">10829 8th Ave SW</div>
+                    <div class="scheduler-confirm-row">Seattle, WA 98146</div>
+                </apex:pageBlock>
+            </apex:outputPanel>
+        </apex:form>
+    </div>
+
     <footer>
-        <table style="width:500px"><tr>
-            <td align="center" style="width:500px;text-align: center;"><img src="{!$Resource.Logo_Client}" height="100px"/></td>
-        </tr></table><hr></hr><table style="width:500px"><tr>
-            <td style="text-align: center;"><a style="text-decoration: none;" href="https://www.whitecenterfoodbank.org">WhiteCenterFoodBank.org</a></td>
-            <td style="text-align: center;"><a href="tel:+12067622848">(206) 762-2848</a></td>
-            <td style="text-align: center;"><a style="text-decoration: none;" href="https://www.whitecenterfoodbank.org/contact-us">Send Email</a></td>
-        </tr></table>
-        <hr></hr>
+
+        <!-- SERVICE HOURS -->
+        <div class="service-hours-box">
+            <div class="service-hours-title">
+                Distribution Hours (days and times may vary)
+            </div>
+            <ul class="service-hours-list">
+                <li><strong>Monday:</strong> 12 pm – 4 pm</li>
+                <li><strong>Tuesday:</strong> Closed</li>
+                <li><strong>Wednesday:</strong> 10 am – 2 pm</li>
+                <li><strong>Thursday:</strong> 10 am – 12 pm (seniors 60+ only)</li>
+                <li><strong>Thursday:</strong> 12:15 pm – 2 pm (all ages)</li>
+                <li><strong>Friday:</strong> 10 am – 2 pm</li>
+            </ul>
+        </div>
+
+        <div class="scheduler-wrap" style="text-align:center;">
+
+            <!-- LOGO -->
+            <div style="margin:20px 0;">
+                <img src="{!$Resource.Logo_Client}" height="100px"/>
+            </div>
+
+            <hr/>
+
+            <!-- LINKS (stacked under logo) -->
+            <div style="margin:15px 0; font-size:18px; line-height:2;">
+                <div>
+                    <a style="text-decoration:none;" href="https://www.whitecenterfoodbank.org">
+                        WhiteCenterFoodBank.org
+                    </a>
+                </div>
+                <div>
+                    <a href="tel:+12067622848">(206) 762-2848</a>
+                </div>
+                <div>
+                    <a style="text-decoration:none;" href="https://www.whitecenterfoodbank.org/contact-us">
+                        Send Email
+                    </a>
+                </div>
+            </div>
+
+            <hr/>
+
+        </div>
     </footer>
+
+    <script>
+    function initDatePickers() {
+        jQuery(".appt-date").each(function() {
+            var $el = jQuery(this);
+
+            if ($el.hasClass("hasDatepicker")) {
+                $el.datepicker("destroy");
+            }
+
+            $el.datepicker({
+                numberOfMonths: 2,
+                minDate: 0,
+                dateFormat: "mm/dd/yy",
+                showOn: "focus"
+            });
+        });
+    }
+
+    jQuery(function() {
+        initDatePickers();
+    });
+    </script>
 
 </apex:page>

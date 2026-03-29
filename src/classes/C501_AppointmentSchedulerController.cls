@@ -258,7 +258,7 @@ public without sharing class C501_AppointmentSchedulerController {
             Integer.valueOf(DateTime.newInstance(selectedDate, Time.newInstance(12, 0, 0, 0)).format('u')) == 4;
 
         List<C501_Appointment__c> appts = [
-            SELECT Id, Name, Date__c, Time__c, Available_Time__c,
+            SELECT Id, Name, Date__c, Time__c, Summary__c, Available_Time__c,
                 Appointments_Full__c, Maximum_Scheduled_Appointments__c
             FROM C501_Appointment__c
             WHERE Date__c = :selectedDate
@@ -275,16 +275,18 @@ public without sharing class C501_AppointmentSchedulerController {
                 continue;
             }
 
-            String label = appt.Time__c;
-            if (appt.Maximum_Scheduled_Appointments__c != null) {
-                label += ' (' + String.valueOf(appt.Maximum_Scheduled_Appointments__c) + ' Remaining)';
-            }
-
+            String label = getAppointmentLabel(appt);
             opts.add(new SelectOption(appt.Id, label));
         }
 
         return opts;
     }
+
+    private String getAppointmentLabel(C501_Appointment__c appt) {
+        return String.isBlank(appt.Summary__c)
+            ? (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
+            : appt.Summary__c;
+    }    
 
     private Boolean isSixtyOrOlder(Date birthdate) {
         if (birthdate == null) {
@@ -374,9 +376,7 @@ public without sharing class C501_AppointmentSchedulerController {
               AND Appointments_Full__c = false
             ORDER BY Available_Time__c, Name
         ]) {
-            String label = String.isBlank(a.Summary__c)
-                ? (String.isBlank(a.Time__c) ? a.Name : a.Time__c)
-                : a.Summary__c;
+            String label = getAppointmentLabel(a);
             opts.add(new SelectOption(a.Id, label));
         }
 
@@ -661,7 +661,7 @@ public without sharing class C501_AppointmentSchedulerController {
     private void addRow(List<Appointment_Scheduled_Request__c> rows, C501_Appointment__c appt, String dayLabel) {
     
         // Remove when want to enable in production - this triggers the flow to create C501_Appointment_Scheduled__c record
-        Boolean createAppointment = Test.isRunningTest();
+        //Boolean createAppointment = Test.isRunningTest();
 
         rows.add(new Appointment_Scheduled_Request__c(
             Name = contactRec.Name + ' ' + dayLabel,
@@ -670,13 +670,11 @@ public without sharing class C501_AppointmentSchedulerController {
             Appointment__c = appt.Id,
             Appointment_Id__c = appt.Id,
             Appointment_Date__c = appt.Date__c,
-            Create_Appointment__c = createAppointment,
+            Create_Appointment__c = true,
             Email__c = email
         ));
 
-        String label = String.isBlank(appt.Summary__c)
-            ? (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
-            : appt.Summary__c;
+        String label = getAppointmentLabel(appt);
 
         String formattedDate = '';
         if (appt.Date__c != null) {
