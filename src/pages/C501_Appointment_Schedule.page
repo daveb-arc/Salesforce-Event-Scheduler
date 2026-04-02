@@ -207,8 +207,10 @@
     </style>
 
     <header>
-        <div class="scheduler-wrap" style="padding:15px 0 5px 0;">
-            <img src="{!$Resource.Logo_Appointment_Schedule}" height="100px"/>
+        <br/>
+
+        <div style="text-align: center;">
+            <img src="{!$Resource.Logo_Client}" height="100px"/>
         </div>
     </header>
 
@@ -219,12 +221,14 @@
             <apex:outputPanel rendered="{!isStep1}">
                 <div class="scheduler-title">Welcome to the White Center Food Bank Appointment Scheduler</div>
 
-                <div style="text-align:center; margin:25px 0;">
+                <div style="text-align:center;">
                     <apex:commandButton value="👉 Continue to Scheduling →"
                                         action="{!startLookup}"
                                         rerender="frm"
                                         styleClass="scheduler-button large-button"/>
                 </div>
+
+                <br/>
 
                 <div class="welcome-box">
                     <div class="welcome-section-title">New customers</div>
@@ -257,24 +261,14 @@
                     <div class="scheduler-copy">
                         Click <strong>Continue</strong>. Then enter your Last Name and Birthdate to schedule an appointment.
                     </div>
-
-                    <hr class="welcome-divider"/>
-
-                    <div class="welcome-section-title">Need help?</div>
-                    <div class="scheduler-copy">
-                        Please call <strong>(206) 762-2848</strong><br/>
-                        Monday through Friday, 8:00 a.m. - 4:00 p.m.
-                    </div>
                 </div>
 
-                <apex:pageBlock>
-                    <apex:pageBlockButtons location="bottom">
-                        <apex:commandButton value="👉 Continue to Scheduling →"
-                                            action="{!startLookup}"
-                                            rerender="frm"
-                                            styleClass="scheduler-button large-button"/>
-                    </apex:pageBlockButtons>
-                </apex:pageBlock>
+                <div style="text-align:center; margin-top:20px;">
+                    <apex:commandButton value="👉 Continue to Scheduling →"
+                                        action="{!startLookup}"
+                                        rerender="frm"
+                                        styleClass="scheduler-button large-button"/>
+                </div>
             </apex:outputPanel>
 
             <apex:outputPanel rendered="{!isStep2}">
@@ -477,12 +471,15 @@
             </ul>
         </div>
 
-        <div class="scheduler-wrap" style="text-align:center;">
-
-            <!-- LOGO -->
-            <div style="margin:20px 0;">
-                <img src="{!$Resource.Logo_Client}" height="100px"/>
+        <div class="service-hours-box">
+            <div class="welcome-section-title">Need help?</div>
+            <div class="scheduler-copy">
+                Please call <strong>(206) 762-2848</strong><br/>
+                Monday through Friday, 8:00 a.m. - 4:00 p.m.
             </div>
+        </div>
+
+        <div class="scheduler-wrap" style="text-align:center;">
 
             <hr/>
 
