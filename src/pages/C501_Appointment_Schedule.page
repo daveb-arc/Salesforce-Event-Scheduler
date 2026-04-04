@@ -326,6 +326,8 @@
                             <apex:inputText id="day1Date"
                                             value="{!day1DateText}"
                                             html-placeholder="mm/dd/yyyy"
+                                            html-readonly="true"
+                                            html-autocomplete="off"
                                             styleClass="full-width-input date-input appt-date day1">
                                 <apex:actionSupport event="onchange"
                                                     action="{!loadDay1Times}"
@@ -362,6 +364,8 @@
                                 <apex:inputText id="day2Date"
                                                 value="{!day2DateText}"
                                                 html-placeholder="mm/dd/yyyy"
+                                                html-readonly="true"
+                                                html-autocomplete="off"
                                                 styleClass="full-width-input date-input appt-date day2">
                                     <apex:actionSupport event="onchange"
                                                         action="{!loadDay2Times}"
@@ -399,6 +403,8 @@
                                 <apex:inputText id="day3Date"
                                                 value="{!day3DateText}"
                                                 html-placeholder="mm/dd/yyyy"
+                                                html-readonly="true"
+                                                html-autocomplete="off"
                                                 styleClass="full-width-input date-input appt-date day3">
                                     <apex:actionSupport event="onchange"
                                                         action="{!loadDay3Times}"

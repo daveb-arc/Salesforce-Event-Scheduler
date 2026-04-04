@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Copy_of_All</fullName>
+    <columns>NAME</columns>
+    <columns>Appointment_Schedule__c</columns>
+    <columns>Appointments_Full__c</columns>
+    <columns>Available_Time__c</columns>
+    <columns>Date__c</columns>
+    <columns>Enable__c</columns>
+    <columns>Time__c</columns>
+    <columns>Maximum_Scheduled_Appointments__c</columns>
+    <columns>C501_Scheduled_Appointments__c</columns>
+    <columns>Senior_Only_Appointments_60_and_over__c</columns>
+    <columns>Summary__c</columns>
+    <columns>Appointments_Max_per_Month__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Available_Time__c</field>
+        <operation>greaterThan</operation>
+        <value>TODAY</value>
+    </filters>
+    <label>All Future</label>
+</ListView>
