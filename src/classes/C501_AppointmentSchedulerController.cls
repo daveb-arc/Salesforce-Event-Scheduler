@@ -19,6 +19,10 @@ public without sharing class C501_AppointmentSchedulerController {
         set { birthDate = parseDateFromInput(value); }
     }
 
+    public Boolean getIsGuestUser() {
+        return UserInfo.getUserType() == 'Guest';
+    }
+        
     public String searchBirthDateText {
         get {
             if (searchContact == null) {
