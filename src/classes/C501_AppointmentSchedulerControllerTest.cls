@@ -388,6 +388,7 @@ private class C501_AppointmentSchedulerControllerTest {
         List<C501_Appointment__c> appts = getNonThursdayAppointments();
     
         insert new Appointment_Scheduled_Request__c(
+            Create_Appointment__c = true,
             Name = 'Existing Day 1',
             Contact__c = con.Id,
             Account__c = con.AccountId,
@@ -423,26 +424,32 @@ private class C501_AppointmentSchedulerControllerTest {
 
         insert new List<Appointment_Scheduled_Request__c>{
             new Appointment_Scheduled_Request__c(
+                Create_Appointment__c = true,
                 Name = 'Month 1',
                 Contact__c = con.Id,
                 Account__c = con.AccountId,
-                Appointment_Id__c = 'A1',
+                Appointment__c = appts[0].Id,
+                Appointment_Id__c = String.valueOf(appts[0].Id),
                 Appointment_Date__c = month1,
                 Email__c = con.Email
             ),
             new Appointment_Scheduled_Request__c(
+                Create_Appointment__c = true,
                 Name = 'Month 2',
                 Contact__c = con.Id,
                 Account__c = con.AccountId,
-                Appointment_Id__c = 'A2',
+                Appointment__c = appts[1].Id,
+                Appointment_Id__c = String.valueOf(appts[1].Id),
                 Appointment_Date__c = month2,
                 Email__c = con.Email
             ),
             new Appointment_Scheduled_Request__c(
+                Create_Appointment__c = true,
                 Name = 'Month 3',
                 Contact__c = con.Id,
                 Account__c = con.AccountId,
-                Appointment_Id__c = 'A3',
+                Appointment__c = appts[2].Id,
+                Appointment_Id__c = String.valueOf(appts[2].Id),
                 Appointment_Date__c = month3,
                 Email__c = con.Email
             )
@@ -771,6 +778,7 @@ private class C501_AppointmentSchedulerControllerTest {
         List<Appointment_Scheduled_Request__c> requests = new List<Appointment_Scheduled_Request__c>();
         for (Integer i = 0; i < maxAppts; i++) {
             requests.add(new Appointment_Scheduled_Request__c(
+                Create_Appointment__c = true,
                 Name = 'Existing Request ' + i,
                 Contact__c = con.Id,
                 Account__c = con.AccountId,
@@ -874,4 +882,108 @@ private class C501_AppointmentSchedulerControllerTest {
         }
         return false;
     }    
+
+
+    @isTest
+    static void testFindFutureAppointmentsAndCancel() {
+        Contact con = getTestContact();
+        con.LastName = 'Boyce';
+        update con;
+        C501_Appointment__c appt = getNonThursdayAppointments()[0];
+
+        C501_Appointment_Scheduled__c scheduled = new C501_Appointment_Scheduled__c(
+            Name = 'Manage Scheduled',
+            Canceled__c = false,
+            C501_Appointment__c = appt.Id,
+            C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id,
+            Email__c = con.Email
+        );
+        insert scheduled;
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact = new Contact(LastName = con.LastName, Birthdate = con.Birthdate);
+        ctrl.findFutureAppointments();
+        System.assertEquals(5, ctrl.step);
+        System.assertEquals(1, ctrl.futureAppointments.size());
+
+        // Create the matching request only after verifying the future list. In this org,
+        // request automation can create its own C501_Appointment_Scheduled__c record,
+        // which would otherwise make this unit test see two future appointments.
+        Appointment_Scheduled_Request__c req = new Appointment_Scheduled_Request__c(
+            Create_Appointment__c = true,
+            Name = 'Manage Request',
+            Contact__c = con.Id,
+            Account__c = con.AccountId,
+            Appointment__c = appt.Id,
+            Appointment_Date__c = appt.Date__c,
+            Email__c = con.Email
+        );
+        insert req;
+
+        ApexPages.currentPage().getParameters().put('appointmentId', String.valueOf(scheduled.Id));
+        ctrl.cancelAppointment();
+        Test.stopTest();
+
+        System.assertEquals(true, [SELECT Canceled__c FROM C501_Appointment_Scheduled__c WHERE Id = :scheduled.Id].Canceled__c);
+        System.assertEquals(false, [SELECT Create_Appointment__c FROM Appointment_Scheduled_Request__c WHERE Id = :req.Id].Create_Appointment__c);
+    }
+
+    @isTest
+    static void testModifyAppointmentLoadsCurrentSelection() {
+        Contact con = getTestContact();
+        C501_Appointment__c appt = getNonThursdayAppointments()[0];
+
+        Appointment_Scheduled_Request__c req = new Appointment_Scheduled_Request__c(
+            Create_Appointment__c = true,
+            Name = 'Modify Request',
+            Contact__c = con.Id,
+            Account__c = con.AccountId,
+            Appointment__c = appt.Id,
+            Appointment_Date__c = appt.Date__c,
+            Email__c = con.Email
+        );
+        insert req;
+
+        C501_Appointment_Scheduled__c scheduled = new C501_Appointment_Scheduled__c(
+            Name = 'Modify Scheduled',
+            Canceled__c = false,
+            C501_Appointment__c = appt.Id,
+            C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id,
+            Email__c = con.Email
+        );
+        insert scheduled;
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeFoundController();
+        ctrl.selectedScheduledId = scheduled.Id;
+        ctrl.modifyAppointment();
+        Test.stopTest();
+
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(scheduled.Id, ctrl.editingScheduledId);
+        System.assertEquals(req.Id, ctrl.editingRequestId);
+        System.assertEquals(appt.Date__c, ctrl.day1Date);
+        System.assertEquals(appt.Id, (Id)ctrl.day1AppointmentId);
+        System.assertEquals(true, ctrl.getIsEditingAppointment());
+    }
+    @isTest
+    static void testFindFutureAppointmentsBlockedForNonBoyce() {
+        Contact con = getTestContact();
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact = new Contact(LastName = con.LastName, Birthdate = con.Birthdate);
+        ctrl.findFutureAppointments();
+        Test.stopTest();
+
+        System.assertEquals(2, ctrl.step);
+        System.assertEquals(true, ApexPages.hasMessages());
+        System.assertEquals(0, ctrl.futureAppointments.size());
+    }
+
 }

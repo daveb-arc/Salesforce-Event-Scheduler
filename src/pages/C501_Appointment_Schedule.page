@@ -203,6 +203,30 @@
             }
         }
 
+        .manage-button {
+            background: #555;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.20), 0 0 0 6px rgba(85,85,85,0.15);
+        }
+        .manage-button:hover { background: #444; }
+        .appointment-list { margin: 10px 0 20px 0; }
+        .appointment-card {
+            border: 1px solid #d8dde6;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 14px;
+            background: #fff;
+        }
+        .appointment-card-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .appointment-card-detail { font-size: 18px; margin-bottom: 12px; }
+        .appointment-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .appointment-actions .scheduler-button {
+            font-size: 17px;
+            padding: 10px 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+        }
+        .cancel-button { background: #ba0517; }
+        .cancel-button:hover { background: #8e030f; }
+
         .welcome-box {
             background: #fff;
             border: 1px solid #d8dde6;
@@ -308,6 +332,7 @@
                                               for="searchLastNameInput"/>
                             <apex:inputText id="searchLastNameInput"
                                             value="{!searchLastNameText}"
+                                            onblur="updateManageAppointmentsButton();"
                                             styleClass="full-width-input"/>
                         </div>
 
@@ -521,11 +546,22 @@
                                             oncomplete="initDatePickers(); initBirthdateDropdowns();"
                                             styleClass="scheduler-button large-button"/>
                     </div>
+                    <div id="manageAppointmentsRow" class="button-row-center" style="margin-top:10px; display:none;">
+                        <apex:commandButton value="Modify Appointments →"
+                                            action="{!findFutureAppointments}"
+                                            rerender="frm"
+                                            oncomplete="initDatePickers(); initBirthdateDropdowns(); updateManageAppointmentsButton();"
+                                            styleClass="scheduler-button large-button manage-button"/>
+                    </div>
                 </apex:pageBlock>
             </apex:outputPanel>
 
             <apex:outputPanel rendered="{!isStep3}">
                 <div class="scheduler-subtitle">Hello {!contactRec.FirstName},</div>
+                <apex:outputPanel rendered="{!isEditingAppointment}" layout="block" styleClass="scheduler-copy">
+                    <strong>Modify your appointment:</strong> choose the replacement date and time below.
+                    Your existing appointment will remain in place until you save the change.
+                </apex:outputPanel>
 
                 <apex:outputPanel rendered="{!isGuestUser}" styleClass="scheduler-copy">
                     <p>Please select up to 3 different appointment days and a time for each selected day.</p>
@@ -563,7 +599,7 @@
                             </apex:outputPanel>
                         </apex:outputPanel>
 
-                        <apex:outputPanel layout="block" styleClass="day-checkbox">
+                        <apex:outputPanel layout="block" styleClass="day-checkbox" rendered="{!NOT(isEditingAppointment)}">
                             <apex:inputCheckbox value="{!showDay2}">
                                 <apex:actionSupport event="onclick"
                                                     action="{!toggleDay2}"
@@ -648,7 +684,7 @@
                     </apex:pageBlockSection>
 
                     <div class="button-row-center">
-                        <apex:commandButton value="Schedule Appointment(s)"
+                        <apex:commandButton value="{!scheduleButtonLabel}"
                                             action="{!schedule}"
                                             rerender="frm"
                                             oncomplete="initDatePickers();"
@@ -657,8 +693,46 @@
                 </apex:pageBlock>
             </apex:outputPanel>
 
+            <apex:outputPanel rendered="{!isStep5}">
+                <div class="scheduler-title">Your Future Appointments</div>
+                <div class="scheduler-copy">
+                    Select <strong>Modify</strong> to choose a different date/time, or <strong>Cancel</strong> to remove an appointment.
+                </div>
+
+                <apex:outputPanel rendered="{!futureAppointments.size = 0}" layout="block" styleClass="welcome-box">
+                    <div class="scheduler-copy">You do not have any future appointments scheduled.</div>
+                </apex:outputPanel>
+
+                <div class="appointment-list">
+                    <apex:repeat value="{!futureAppointments}" var="appt">
+                        <div class="appointment-card">
+                            <div class="appointment-card-title">{!appt.appointmentLabel}</div>
+                            <div class="appointment-card-detail">
+                                <strong>Date:</strong> {!appt.displayDate}<br/>
+                                <strong>Time:</strong> {!appt.appointmentTime}
+                            </div>
+                            <div class="appointment-actions">
+                                <apex:commandButton value="Modify →"
+                                                    action="{!modifyAppointment}"
+                                                    rerender="frm"
+                                                    oncomplete="initDatePickers();"
+                                                    styleClass="scheduler-button">
+                                    <apex:param name="appointmentId" value="{!appt.scheduledId}"/>
+                                </apex:commandButton>
+                                <apex:commandButton value="Cancel"
+                                                    action="{!cancelAppointment}"
+                                                    rerender="frm"
+                                                    styleClass="scheduler-button cancel-button">
+                                    <apex:param name="appointmentId" value="{!appt.scheduledId}"/>
+                                </apex:commandButton>
+                            </div>
+                        </div>
+                    </apex:repeat>
+                </div>
+            </apex:outputPanel>
+
             <apex:outputPanel rendered="{!isStep4}">
-                <div class="scheduler-title">Success! Your appointment selection has been scheduled.</div>
+                <div class="scheduler-title">{!successTitle}</div>
                 <apex:pageBlock >
                     <div class="scheduler-confirm-row"><b>Name:</b> {!contactRec.Name}</div>
                     <apex:repeat value="{!confirmationLines}" var="line">
@@ -746,6 +820,15 @@
             : '';
     }
 
+    function updateManageAppointmentsButton() {
+        var lastNameInput = document.querySelector('[id$="searchLastNameInput"]');
+        var manageRow = document.getElementById('manageAppointmentsRow');
+        if (!manageRow) return;
+
+        var lastName = lastNameInput ? (lastNameInput.value || '').trim().toLowerCase() : '';
+        manageRow.style.display = lastName === 'boyce' ? '' : 'none';
+    }
+
     function initBirthdateDropdowns() {
         var hiddenInput = getBirthdateHiddenInput();
         var yearSelect = document.getElementById('birthYear');
@@ -766,6 +849,7 @@
         // Populate the birthdate dropdowns without depending on jQuery.
         // This ensures the year list still loads if the external jQuery CDN is blocked or delayed.
         initBirthdateDropdowns();
+        updateManageAppointmentsButton();
 
         // The appointment date picker still uses jQuery UI, so initialize it only when available.
         if (window.jQuery && jQuery.fn && jQuery.fn.datepicker) {

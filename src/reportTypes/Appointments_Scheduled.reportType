@@ -1088,6 +1088,11 @@
             <field>C501_Appointment__c.Appointment_Schedule__c.Name</field>
             <table>Contact.Appointments_Scheduled__r</table>
         </columns>
+        <columns>
+            <checkedByDefault>false</checkedByDefault>
+            <field>Canceled__c</field>
+            <table>Contact.Appointments_Scheduled__r</table>
+        </columns>
         <masterLabel>Appointments Scheduled</masterLabel>
     </sections>
 </ReportType>

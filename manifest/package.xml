@@ -78,11 +78,6 @@
         <name>FlexiPage</name>
     </types>
     <types>
-        <members>C501_Appointment_Schedule-51</members>
-        <members>C501_Appointment_Schedule_Event-14</members>
-        <name>Flow</name>
-    </types>
-    <types>
         <members>C501_Appointment_Schedule__c-Appointment Schedule Layout</members>
         <members>C501_Appointment_Scheduled__c-Appointment Scheduled Layout</members>
         <members>C501_Appointment__c-Available Appointment Layout</members>

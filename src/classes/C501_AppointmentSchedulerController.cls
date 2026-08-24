@@ -66,6 +66,32 @@ public without sharing class C501_AppointmentSchedulerController {
 
     public List<String> confirmationLines { get; set; }
 
+    // Appointment management state
+    public List<FutureAppointmentRow> futureAppointments { get; set; }
+    public String selectedScheduledId { get; set; }
+    public Id editingScheduledId { get; set; }
+    public Id editingRequestId { get; set; }
+
+    public class FutureAppointmentRow {
+        public Id scheduledId { get; set; }
+        public Id appointmentId { get; set; }
+        public Date appointmentDate { get; set; }
+        public String appointmentTime { get; set; }
+        public String appointmentLabel { get; set; }
+        public String displayDate { get; set; }
+
+        public FutureAppointmentRow(C501_Appointment_Scheduled__c scheduled) {
+            scheduledId = scheduled.Id;
+            appointmentId = scheduled.C501_Appointment__c;
+            appointmentDate = scheduled.Date__c;
+            appointmentTime = scheduled.Time__c;
+            appointmentLabel = scheduled.C501_Appointment__r == null || String.isBlank(scheduled.C501_Appointment__r.Summary__c)
+                ? scheduled.Name
+                : scheduled.C501_Appointment__r.Summary__c;
+            displayDate = appointmentDate == null ? '' : appointmentDate.format();
+        }
+    }
+
     public C501_AppointmentSchedulerController() {
         step = 1;
         showDay2 = false;
@@ -77,6 +103,7 @@ public without sharing class C501_AppointmentSchedulerController {
         day2TimeOptions = new List<SelectOption>();
         day3TimeOptions = new List<SelectOption>();
         confirmationLines = new List<String>();
+        futureAppointments = new List<FutureAppointmentRow>();
 
         tryLoadIncomingContact();
 
@@ -113,6 +140,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     }
 
+
     public PageReference startLookup() {
         step = 2;
         return null;
@@ -132,6 +160,24 @@ public without sharing class C501_AppointmentSchedulerController {
 
     public Boolean getIsStep4() {
         return step == 4;
+    }
+
+    public Boolean getIsStep5() {
+        return step == 5;
+    }
+
+    public Boolean getIsEditingAppointment() {
+        return editingScheduledId != null;
+    }
+
+    public String getScheduleButtonLabel() {
+        return getIsEditingAppointment() ? 'Save Appointment Change' : 'Schedule Appointment(s)';
+    }
+
+    public String getSuccessTitle() {
+        return getIsEditingAppointment()
+            ? 'Success! Your appointment has been updated.'
+            : 'Success! Your appointment selection has been scheduled.';
     }
 
     public String getTodayIso() {
@@ -205,6 +251,183 @@ public without sharing class C501_AppointmentSchedulerController {
         step = 3;
 
         return null;
+    }
+
+    public PageReference findFutureAppointments() {
+        if (searchContact == null || String.isBlank(searchContact.LastName) ||
+            !searchContact.LastName.trim().equalsIgnoreCase('Boyce')) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'Appointment management is currently available for testing only.'
+            ));
+            return null;
+        }
+
+        PageReference result = findContact();
+        if (contactRec == null || step != 3) {
+            return result;
+        }
+
+        editingScheduledId = null;
+        editingRequestId = null;
+        loadFutureAppointments();
+        step = 5;
+        return null;
+    }
+
+    private void loadFutureAppointments() {
+        futureAppointments = new List<FutureAppointmentRow>();
+        if (contactRec == null) {
+            return;
+        }
+
+        String contactIdText = String.valueOf(contactRec.Id);
+        for (C501_Appointment_Scheduled__c scheduled : [
+            SELECT Id, Name, C501_Appointment__c, C501_Appointment__r.Summary__c,
+                   Date__c, Time__c, Appointment_Info__c
+            FROM C501_Appointment_Scheduled__c
+            WHERE Date__c >= :Date.today()
+              AND Canceled__c = false
+              AND (C501_Contact__c = :contactRec.Id OR Contact_Id__c = :contactIdText)
+            ORDER BY Date__c, Appointment_Info__c, Name
+        ]) {
+            futureAppointments.add(new FutureAppointmentRow(scheduled));
+        }
+    }
+
+    public PageReference modifyAppointment() {
+        C501_Appointment_Scheduled__c scheduled = getSelectedFutureAppointment();
+        if (scheduled == null) {
+            return null;
+        }
+
+        editingScheduledId = scheduled.Id;
+        editingRequestId = findMatchingRequestId(scheduled);
+
+        showDay2 = false;
+        showDay3 = false;
+        day2Date = null;
+        day2AppointmentId = null;
+        day2TimeOptions = new List<SelectOption>();
+        day3Date = null;
+        day3AppointmentId = null;
+        day3TimeOptions = new List<SelectOption>();
+
+        day1Date = scheduled.Date__c;
+        day1TimeOptions = buildTimeOptionsForDate(day1Date, 'Day 1');
+        day1AppointmentId = String.valueOf(scheduled.C501_Appointment__c);
+        step = 3;
+        return null;
+    }
+
+    public PageReference cancelAppointment() {
+        C501_Appointment_Scheduled__c scheduled = getSelectedFutureAppointment();
+        if (scheduled == null) {
+            return null;
+        }
+
+        Id requestId = findMatchingRequestId(scheduled);
+        Savepoint sp = Database.setSavepoint();
+        try {
+            // Preserve both records for history. The scheduled appointment is marked canceled,
+            // and the matching request is marked as no longer an active create request.
+            // Capacity and future-appointment queries ignore canceled scheduled records.
+            scheduled.Canceled__c = true;
+            update scheduled;
+
+            if (requestId != null) {
+                update new Appointment_Scheduled_Request__c(
+                    Id = requestId,
+                    Create_Appointment__c = false
+                );
+            }
+        } catch (Exception ex) {
+            Database.rollback(sp);
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'The appointment could not be cancelled. Please try again or call the food bank for help.'
+            ));
+            return null;
+        }
+
+        ApexPages.addMessage(new ApexPages.Message(
+            ApexPages.Severity.CONFIRM,
+            'Your appointment has been cancelled.'
+        ));
+        selectedScheduledId = null;
+        loadFutureAppointments();
+        step = 5;
+        return null;
+    }
+
+    private C501_Appointment_Scheduled__c getSelectedFutureAppointment() {
+        // apex:param on a commandButton is reliably available as a request parameter,
+        // but assignTo is not reliable in every Visualforce/AJAX postback. Read the
+        // posted appointment id as a fallback so Modify/Cancel always target the row
+        // the user clicked. Tests and non-Visualforce callers can still set
+        // selectedScheduledId directly.
+        String effectiveScheduledId = selectedScheduledId;
+        if (String.isBlank(effectiveScheduledId)) {
+            effectiveScheduledId = ApexPages.currentPage().getParameters().get('appointmentId');
+        }
+
+        if (contactRec == null || String.isBlank(effectiveScheduledId)) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'Please select an appointment.'
+            ));
+            return null;
+        }
+
+        selectedScheduledId = effectiveScheduledId;
+
+        Id scheduledId;
+        try {
+            scheduledId = (Id) effectiveScheduledId;
+        } catch (Exception ex) {
+            ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Invalid appointment.'));
+            return null;
+        }
+
+        String contactIdText = String.valueOf(contactRec.Id);
+        List<C501_Appointment_Scheduled__c> matches = [
+            SELECT Id, Name, C501_Appointment__c, C501_Appointment__r.Summary__c,
+                   Date__c, Time__c, Appointment_Info__c
+            FROM C501_Appointment_Scheduled__c
+            WHERE Id = :scheduledId
+              AND Date__c >= :Date.today()
+              AND Canceled__c = false
+              AND (C501_Contact__c = :contactRec.Id OR Contact_Id__c = :contactIdText)
+            LIMIT 1
+        ];
+
+        if (matches.isEmpty()) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                'That appointment is no longer available to modify.'
+            ));
+            loadFutureAppointments();
+            return null;
+        }
+
+        return matches[0];
+    }
+
+    private Id findMatchingRequestId(C501_Appointment_Scheduled__c scheduled) {
+        if (scheduled == null || contactRec == null) {
+            return null;
+        }
+
+        List<Appointment_Scheduled_Request__c> requests = [
+            SELECT Id
+            FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :contactRec.Id
+              AND Appointment__c = :scheduled.C501_Appointment__c
+              AND Appointment_Date__c = :scheduled.Date__c
+            ORDER BY CreatedDate DESC
+            LIMIT 1
+        ];
+        return requests.isEmpty() ? null : requests[0].Id;
     }
 
     public PageReference loadDay1Times() {
@@ -540,7 +763,39 @@ public without sharing class C501_AppointmentSchedulerController {
             addRow(toInsert, apptById.get((Id)day3AppointmentId), 'Day 3');
         }
     
+        if (editingScheduledId != null) {
+            // Replace the existing appointment only after the new selection has passed all validation.
+            // Keeping the change in one transaction means a failed replacement does not lose the old appointment.
+            List<C501_Appointment_Scheduled__c> oldScheduled = [
+                SELECT Id
+                FROM C501_Appointment_Scheduled__c
+                WHERE Id = :editingScheduledId
+                LIMIT 1
+            ];
+            if (!oldScheduled.isEmpty()) {
+                delete oldScheduled;
+            }
+            if (editingRequestId != null) {
+                List<Appointment_Scheduled_Request__c> oldRequests = [
+                    SELECT Id
+                    FROM Appointment_Scheduled_Request__c
+                    WHERE Id = :editingRequestId
+                    LIMIT 1
+                ];
+                if (!oldRequests.isEmpty()) {
+                    delete oldRequests;
+                }
+            }
+        }
+
         insert toInsert;
+
+        // Re-query after the request insert (and after any replacement delete/insert) so
+        // roll-up/formula values such as Summary__c reflect the final remaining capacity.
+        // This keeps both new schedules and modified appointments from showing the
+        // pre-save "Remaining" count on the confirmation screen.
+        rebuildConfirmationLines();
+
         step = 4;
         return null;
     }
@@ -609,11 +864,7 @@ public without sharing class C501_AppointmentSchedulerController {
             return false;
         }
     
-        Integer existingCount = [
-            SELECT COUNT()
-            FROM Appointment_Scheduled_Request__c
-            WHERE Appointment__c = :appt.Id
-        ];
+        Integer existingCount = countRequestsForAppointment(appt.Id);
     
         Integer maxAllowed = appt.Maximum_Scheduled_Appointments__c == null
             ? 0
@@ -678,8 +929,42 @@ public without sharing class C501_AppointmentSchedulerController {
             Email__c = email
         ));
 
-        String label = getAppointmentLabel(appt);
+   }
 
+    private void rebuildConfirmationLines() {
+        confirmationLines = new List<String>();
+
+        Set<Id> selectedIds = new Set<Id>();
+        if (!String.isBlank(day1AppointmentId)) selectedIds.add((Id)day1AppointmentId);
+        if (showDay2 && !String.isBlank(day2AppointmentId)) selectedIds.add((Id)day2AppointmentId);
+        if (showDay3 && !String.isBlank(day3AppointmentId)) selectedIds.add((Id)day3AppointmentId);
+
+        if (selectedIds.isEmpty()) {
+            return;
+        }
+
+        Map<Id, C501_Appointment__c> refreshedById = new Map<Id, C501_Appointment__c>([
+            SELECT Id, Name, Date__c, Time__c, Summary__c,
+                   C501_Scheduled_Appointments__c, Maximum_Scheduled_Appointments__c
+            FROM C501_Appointment__c
+            WHERE Id IN :selectedIds
+        ]);
+
+        addConfirmationLine(refreshedById.get((Id)day1AppointmentId), 'Day 1');
+        if (showDay2) {
+            addConfirmationLine(refreshedById.get((Id)day2AppointmentId), 'Day 2');
+        }
+        if (showDay3) {
+            addConfirmationLine(refreshedById.get((Id)day3AppointmentId), 'Day 3');
+        }
+    }
+
+    private void addConfirmationLine(C501_Appointment__c appt, String dayLabel) {
+        if (appt == null) {
+            return;
+        }
+
+        String label = getAppointmentLabel(appt);
         String formattedDate = '';
         if (appt.Date__c != null) {
             String mm = appt.Date__c.month() < 10 ? '0' + String.valueOf(appt.Date__c.month()) : String.valueOf(appt.Date__c.month());
@@ -687,11 +972,9 @@ public without sharing class C501_AppointmentSchedulerController {
             String yyyy = String.valueOf(appt.Date__c.year());
             formattedDate = mm + '/' + dd + '/' + yyyy;
         }
-        
-        confirmationLines.add(
-            dayLabel + ': ' + formattedDate + ' - ' + label
-        );
-   }
+
+        confirmationLines.add(dayLabel + ': ' + formattedDate + ' - ' + label);
+    }
 
     private Boolean validateMonthlyLimitWithPendingSelections() {
         if (contactRec == null) {
@@ -724,13 +1007,7 @@ public without sharing class C501_AppointmentSchedulerController {
             Date firstOfMonth = Date.newInstance(y, m, 1);
             Date firstOfNextMonth = firstOfMonth.addMonths(1);
     
-            Integer existingCount = [
-                SELECT COUNT()
-                FROM Appointment_Scheduled_Request__c
-                WHERE Contact__c = :contactId
-                  AND Appointment_Date__c >= :firstOfMonth
-                  AND Appointment_Date__c < :firstOfNextMonth
-            ];
+            Integer existingCount = countRequestsForContactRange(contactId, firstOfMonth, firstOfNextMonth);
     
             Integer pendingCount = selectedPerMonth.get(monthKey);
     
@@ -782,12 +1059,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     
         // Rule 1: already has appointment on same day in database
-        Integer sameDayCount = [
-            SELECT COUNT()
-            FROM Appointment_Scheduled_Request__c
-            WHERE Contact__c = :contactId
-              AND Appointment_Date__c = :selectedDate
-        ];
+        Integer sameDayCount = countRequestsForContactDate(contactId, selectedDate);
     
         if (sameDayCount > 0) {
             ApexPages.addMessage(new ApexPages.Message(
@@ -802,13 +1074,7 @@ public without sharing class C501_AppointmentSchedulerController {
         Date firstOfMonth = Date.newInstance(selectedDate.year(), selectedDate.month(), 1);
         Date firstOfNextMonth = firstOfMonth.addMonths(1);
     
-        Integer dbMonthCount = [
-            SELECT COUNT()
-            FROM Appointment_Scheduled_Request__c
-            WHERE Contact__c = :contactId
-              AND Appointment_Date__c >= :firstOfMonth
-              AND Appointment_Date__c < :firstOfNextMonth
-        ];
+        Integer dbMonthCount = countRequestsForContactRange(contactId, firstOfMonth, firstOfNextMonth);
     
         Integer selectedMonthCount = 0;
     
@@ -844,6 +1110,66 @@ public without sharing class C501_AppointmentSchedulerController {
         return true;
     }
         
+    private Integer countRequestsForAppointment(Id appointmentId) {
+        if (editingRequestId == null) {
+            return [
+                SELECT COUNT()
+                FROM Appointment_Scheduled_Request__c
+                WHERE Appointment__c = :appointmentId
+                  AND Create_Appointment__c = true
+            ];
+        }
+        return [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Appointment__c = :appointmentId
+              AND Create_Appointment__c = true
+              AND Id != :editingRequestId
+        ];
+    }
+
+    private Integer countRequestsForContactDate(Id contactId, Date appointmentDate) {
+        if (editingRequestId == null) {
+            return [
+                SELECT COUNT()
+                FROM Appointment_Scheduled_Request__c
+                WHERE Contact__c = :contactId
+                  AND Appointment_Date__c = :appointmentDate
+                  AND Create_Appointment__c = true
+            ];
+        }
+        return [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :contactId
+              AND Appointment_Date__c = :appointmentDate
+              AND Create_Appointment__c = true
+              AND Id != :editingRequestId
+        ];
+    }
+
+    private Integer countRequestsForContactRange(Id contactId, Date startDate, Date endDateExclusive) {
+        if (editingRequestId == null) {
+            return [
+                SELECT COUNT()
+                FROM Appointment_Scheduled_Request__c
+                WHERE Contact__c = :contactId
+                  AND Appointment_Date__c >= :startDate
+                  AND Appointment_Date__c < :endDateExclusive
+                  AND Create_Appointment__c = true
+            ];
+        }
+        return [
+            SELECT COUNT()
+            FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :contactId
+              AND Appointment_Date__c >= :startDate
+              AND Appointment_Date__c < :endDateExclusive
+              AND Create_Appointment__c = true
+              AND Id != :editingRequestId
+        ];
+    }
+
     private void clearSelectedDay(String dayLabel) {
         if (dayLabel == 'Day 1') {
             day1Date = null;

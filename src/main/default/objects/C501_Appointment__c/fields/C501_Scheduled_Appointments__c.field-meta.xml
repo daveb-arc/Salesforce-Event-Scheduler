@@ -3,6 +3,11 @@
     <fullName>C501_Scheduled_Appointments__c</fullName>
     <externalId>false</externalId>
     <label>Scheduled Appointments</label>
+    <summaryFilterItems>
+        <field>C501_Appointment_Scheduled__c.Canceled__c</field>
+        <operation>equals</operation>
+        <value>False</value>
+    </summaryFilterItems>
     <summaryForeignKey>C501_Appointment_Scheduled__c.C501_Appointment__c</summaryForeignKey>
     <summaryOperation>count</summaryOperation>
     <trackTrending>false</trackTrending>
