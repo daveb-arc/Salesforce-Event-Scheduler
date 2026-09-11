@@ -53,6 +53,60 @@ public without sharing class C501_AppointmentSchedulerController {
         set { day3Date = parseDateFromInput(value); }
     }
 
+    // Dates that have at least one currently available appointment slot.
+    // Used by the jQuery UI datepicker to disable/cross out unavailable days.
+    public String getAvailableAppointmentDateKeysJson() {
+        Date birthdate = null;
+        if (contactRec != null) {
+            birthdate = contactRec.Birthdate;
+        } else if (searchContact != null) {
+            birthdate = searchContact.Birthdate;
+        }
+
+        Boolean isSenior = isSixtyOrOlder(birthdate);
+        Set<String> dateKeys = new Set<String>();
+
+        for (C501_Appointment__c appt : [
+            SELECT Date__c, Time__c
+            FROM C501_Appointment__c
+            WHERE Date__c >= :Date.today()
+              AND Enable__c = true
+              AND Appointments_Full__c = false
+            ORDER BY Date__c, Available_Time__c, Time__c
+        ]) {
+            if (appt.Date__c == null) {
+                continue;
+            }
+
+            Boolean isThursday =
+                Integer.valueOf(DateTime.newInstance(appt.Date__c, Time.newInstance(12, 0, 0, 0)).format('u')) == 4;
+
+            if (isThursday && !isSenior && isThursdaySeniorOnlyTime(appt.Time__c)) {
+                continue;
+            }
+
+            String monthText = appt.Date__c.month() < 10
+                ? '0' + String.valueOf(appt.Date__c.month())
+                : String.valueOf(appt.Date__c.month());
+            String dayText = appt.Date__c.day() < 10
+                ? '0' + String.valueOf(appt.Date__c.day())
+                : String.valueOf(appt.Date__c.day());
+            String key = String.valueOf(appt.Date__c.year()) + '-' + monthText + '-' + dayText;
+            dateKeys.add(key);
+        }
+
+        List<String> sortedKeys = new List<String>();
+        sortedKeys.addAll(dateKeys);
+        sortedKeys.sort();
+        return JSON.serialize(sortedKeys);
+    }
+
+    // Visualforce apex:inputHidden requires a writable property.
+    // The posted value is ignored because availability is always recalculated server-side.
+    public void setAvailableAppointmentDateKeysJson(String ignoredValue) {
+        // Intentionally ignored.
+    }
+
     public String day1AppointmentId { get; set; }
     public String day2AppointmentId { get; set; }
     public String day3AppointmentId { get; set; }
@@ -254,15 +308,6 @@ public without sharing class C501_AppointmentSchedulerController {
     }
 
     public PageReference findFutureAppointments() {
-        if (searchContact == null || String.isBlank(searchContact.LastName) ||
-            !searchContact.LastName.trim().equalsIgnoreCase('Boyce')) {
-            ApexPages.addMessage(new ApexPages.Message(
-                ApexPages.Severity.ERROR,
-                'Appointment management is currently available for testing only.'
-            ));
-            return null;
-        }
-
         PageReference result = findContact();
         if (contactRec == null || step != 3) {
             return result;
@@ -1193,21 +1238,34 @@ public without sharing class C501_AppointmentSchedulerController {
 
         String v = value.trim();
 
-        if (v.contains('-')) {
-            return Date.valueOf(v);
+        // A partially completed birthdate dropdown can post placeholder text such as
+        // "2012-Select month-Select day". Treat that as no date instead of allowing
+        // Date.valueOf() to throw before the Find/Modify action can show its normal error.
+        String lowerValue = v.toLowerCase();
+        if (lowerValue.contains('select month') || lowerValue.contains('select day') ||
+            lowerValue.contains('select year')) {
+            return null;
         }
 
-        if (v.contains('/')) {
-            List<String> parts = v.split('/');
-            if (parts.size() == 3) {
-                Integer monthVal = Integer.valueOf(parts[0]);
-                Integer dayVal = Integer.valueOf(parts[1]);
-                Integer yearVal = Integer.valueOf(parts[2]);
-                return Date.newInstance(yearVal, monthVal, dayVal);
+        try {
+            if (v.contains('-')) {
+                return Date.valueOf(v);
             }
-        }
 
-        return Date.valueOf(v);
+            if (v.contains('/')) {
+                List<String> parts = v.split('/');
+                if (parts.size() == 3) {
+                    Integer monthVal = Integer.valueOf(parts[0]);
+                    Integer dayVal = Integer.valueOf(parts[1]);
+                    Integer yearVal = Integer.valueOf(parts[2]);
+                    return Date.newInstance(yearVal, monthVal, dayVal);
+                }
+            }
+
+            return Date.valueOf(v);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private String formatDateForInput(Date d) {

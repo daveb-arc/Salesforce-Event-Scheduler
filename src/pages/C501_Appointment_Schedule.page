@@ -204,10 +204,12 @@
         }
 
         .manage-button {
-            background: #555;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.20), 0 0 0 6px rgba(85,85,85,0.15);
+            background: #f05a28;
+            box-shadow:
+                0 4px 10px rgba(0,0,0,0.25),
+                0 0 0 6px rgba(240, 90, 40, 0.25);
         }
-        .manage-button:hover { background: #444; }
+        .manage-button:hover { background: #d94f22; }
         .appointment-list { margin: 10px 0 20px 0; }
         .appointment-card {
             border: 1px solid #d8dde6;
@@ -280,6 +282,8 @@
 
     <div class="scheduler-wrap">
         <apex:form id="frm">
+            <!-- These values are inside frm so AJAX rerenders refresh appointment calendar availability. -->
+            <apex:inputHidden id="availableAppointmentDatesJson" value="{!availableAppointmentDateKeysJson}"/>
             <apex:pageMessages id="msgs"/>
 
             <apex:outputPanel rendered="{!isStep1}">
@@ -543,10 +547,10 @@
                         <apex:commandButton value="Find Appointments →"
                                             action="{!findContact}"
                                             rerender="frm"
-                                            oncomplete="initDatePickers(); initBirthdateDropdowns();"
+                                            oncomplete="initDatePickers(); initBirthdateDropdowns(); updateManageAppointmentsButton();"
                                             styleClass="scheduler-button large-button"/>
                     </div>
-                    <div id="manageAppointmentsRow" class="button-row-center" style="margin-top:10px; display:none;">
+                    <div id="manageAppointmentsRow" class="button-row-center" style="margin-top:10px;">
                         <apex:commandButton value="Modify Appointments →"
                                             action="{!findFutureAppointments}"
                                             rerender="frm"
@@ -786,8 +790,70 @@
         </footer>
     </apex:outputPanel>
 
+    <style>
+    /* Appointment dates with no available time slots. */
+    .ui-datepicker td.appt-date-unavailable span {
+        position: relative;
+        color: #999 !important;
+        background: #f3f3f3 !important;
+    }
+
+    .ui-datepicker td.appt-date-unavailable span::after {
+        content: "\2212";
+        position: absolute;
+        left: 70%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 20px;
+        line-height: 1;
+        color: #a0a0a0;
+        pointer-events: none;
+    }
+    </style>
+
     <script>
+    var availableAppointmentDates = {};
+
+    function refreshAppointmentCalendarAvailability() {
+        var datesInput = document.querySelector('[id$="availableAppointmentDatesJson"]');
+
+        var enabled = true;
+        availableAppointmentDates = {};
+
+        if (datesInput) {
+            try {
+                var keys = JSON.parse(datesInput.value || '[]');
+                jQuery.each(keys || [], function(_, key) {
+                    availableAppointmentDates[key] = true;
+                });
+            } catch (e) {
+                // Fail open: if availability data cannot be parsed, preserve the original calendar behavior.
+                enabled = false;
+                availableAppointmentDates = {};
+            }
+        }
+
+        return enabled;
+    }
+
+    function appointmentDateKey(date) {
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function appointmentBeforeShowDay(date) {
+        var key = appointmentDateKey(date);
+        if (availableAppointmentDates[key]) {
+            return [true, 'appt-date-available', 'Appointments available'];
+        }
+        return [false, 'appt-date-unavailable', 'No appointments available'];
+    }
+
     function initDatePickers() {
+        var availabilityCalendarEnabled = refreshAppointmentCalendarAvailability();
+
         jQuery(".appt-date").each(function() {
             var $el = jQuery(this);
 
@@ -795,12 +861,19 @@
                 $el.datepicker("destroy");
             }
 
-            $el.datepicker({
+            var datePickerOptions = {
                 numberOfMonths: 2,
                 minDate: 0,
                 dateFormat: "mm/dd/yy",
                 showOn: "focus"
-            });
+            };
+
+            // Disable dates that do not have any currently available appointment slots.
+            if (availabilityCalendarEnabled) {
+                datePickerOptions.beforeShowDay = appointmentBeforeShowDay;
+            }
+
+            $el.datepicker(datePickerOptions);
         });
     }
 
@@ -821,12 +894,10 @@
     }
 
     function updateManageAppointmentsButton() {
-        var lastNameInput = document.querySelector('[id$="searchLastNameInput"]');
         var manageRow = document.getElementById('manageAppointmentsRow');
         if (!manageRow) return;
 
-        var lastName = lastNameInput ? (lastNameInput.value || '').trim().toLowerCase() : '';
-        manageRow.style.display = lastName === 'boyce' ? '' : 'none';
+        manageRow.style.display = '';
     }
 
     function initBirthdateDropdowns() {

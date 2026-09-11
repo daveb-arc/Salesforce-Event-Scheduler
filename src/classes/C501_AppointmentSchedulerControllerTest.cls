@@ -380,6 +380,12 @@ private class C501_AppointmentSchedulerControllerTest {
         ctrl.searchBirthDateText = '2000-01-01';
         System.assertEquals(Date.newInstance(2000, 1, 1), ctrl.searchContact.Birthdate);
         System.assertEquals('2000-01-01', ctrl.searchBirthDateText);
+
+        // Partial dropdown values should be treated as an incomplete birthdate,
+        // not throw a Date.valueOf exception before the action can show its normal error.
+        ctrl.searchBirthDateText = '2012-Select month-Select day';
+        System.assertEquals(null, ctrl.searchContact.Birthdate);
+        System.assertEquals(null, ctrl.searchBirthDateText);
     }
 
     @isTest
@@ -863,6 +869,39 @@ private class C501_AppointmentSchedulerControllerTest {
     }
 
     @isTest
+    static void testAvailableAppointmentDateKeysJson() {
+        Contact con = getTestContact();
+        List<C501_Appointment__c> nonThursday = getNonThursdayAppointments();
+        C501_Appointment__c thursdayAfternoon = getThursdayAfternoonAppointment();
+
+        Test.startTest();
+
+        // Exercise the searchContact birthdate path used before a Contact has been loaded.
+        C501_AppointmentSchedulerController searchCtrl = new C501_AppointmentSchedulerController();
+        searchCtrl.searchContact = new Contact(Birthdate = con.Birthdate);
+        String searchJson = searchCtrl.getAvailableAppointmentDateKeysJson();
+        System.assertNotEquals(null, searchJson);
+        System.assert(searchJson.contains(String.valueOf(nonThursday[0].Date__c)));
+        System.assert(searchJson.contains(String.valueOf(thursdayAfternoon.Date__c)));
+
+        // Exercise the contactRec/senior path as well.
+        Contact senior = createSeniorContact('CalendarSenior');
+        C501_AppointmentSchedulerController seniorCtrl = new C501_AppointmentSchedulerController();
+        seniorCtrl.contactRec = senior;
+        String seniorJson = seniorCtrl.getAvailableAppointmentDateKeysJson();
+        System.assertNotEquals(null, seniorJson);
+        System.assert(seniorJson.contains(String.valueOf(getThursdayMorningAppointment().Date__c)));
+
+        // Also cover the no-contact path; availability still returns valid JSON.
+        C501_AppointmentSchedulerController noContactCtrl = new C501_AppointmentSchedulerController();
+        String noContactJson = noContactCtrl.getAvailableAppointmentDateKeysJson();
+        System.assert(noContactJson.startsWith('['));
+        System.assert(noContactJson.endsWith(']'));
+
+        Test.stopTest();
+    }
+
+    @isTest
     static void testTodayIsoFormat() {
         C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
         String iso = ctrl.getTodayIso();
@@ -887,8 +926,6 @@ private class C501_AppointmentSchedulerControllerTest {
     @isTest
     static void testFindFutureAppointmentsAndCancel() {
         Contact con = getTestContact();
-        con.LastName = 'Boyce';
-        update con;
         C501_Appointment__c appt = getNonThursdayAppointments()[0];
 
         C501_Appointment_Scheduled__c scheduled = new C501_Appointment_Scheduled__c(
@@ -971,7 +1008,7 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(true, ctrl.getIsEditingAppointment());
     }
     @isTest
-    static void testFindFutureAppointmentsBlockedForNonBoyce() {
+    static void testFindFutureAppointmentsAllowedForAnyContact() {
         Contact con = getTestContact();
 
         Test.startTest();
@@ -981,8 +1018,7 @@ private class C501_AppointmentSchedulerControllerTest {
         ctrl.findFutureAppointments();
         Test.stopTest();
 
-        System.assertEquals(2, ctrl.step);
-        System.assertEquals(true, ApexPages.hasMessages());
+        System.assertEquals(5, ctrl.step);
         System.assertEquals(0, ctrl.futureAppointments.size());
     }
 
