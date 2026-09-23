@@ -190,7 +190,16 @@ public without sharing class C501_AppointmentSchedulerController {
             searchContact.LastName = contactRec.LastName;
             searchContact.Birthdate = contactRec.Birthdate;
 
-            step = 3;
+            String modeParam = ApexPages.currentPage() == null
+                ? null
+                : ApexPages.currentPage().getParameters().get('mode');
+
+            if ('modify'.equalsIgnoreCase(modeParam)) {
+                loadFutureAppointments();
+                step = 5;
+            } else {
+                step = 3;
+            }
         }
     }
 

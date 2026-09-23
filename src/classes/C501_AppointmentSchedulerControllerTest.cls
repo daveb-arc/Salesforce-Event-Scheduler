@@ -1008,6 +1008,33 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(true, ctrl.getIsEditingAppointment());
     }
     @isTest
+    static void testDirectModifyModeLoadsFutureAppointments() {
+        Contact con = getTestContact();
+        C501_Appointment__c appt = getNonThursdayAppointments()[0];
+
+        insert new C501_Appointment_Scheduled__c(
+            Name = 'Direct Modify Scheduled',
+            Canceled__c = false,
+            C501_Appointment__c = appt.Id,
+            C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id,
+            Email__c = con.Email
+        );
+
+        Test.setCurrentPage(Page.C501_Appointment_Schedule);
+        ApexPages.currentPage().getParameters().put('id', String.valueOf(con.Id));
+        ApexPages.currentPage().getParameters().put('mode', 'modify');
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        Test.stopTest();
+
+        System.assertEquals(con.Id, ctrl.contactRec.Id);
+        System.assertEquals(5, ctrl.step);
+        System.assertEquals(1, ctrl.futureAppointments.size());
+    }
+
+    @isTest
     static void testFindFutureAppointmentsAllowedForAnyContact() {
         Contact con = getTestContact();
 

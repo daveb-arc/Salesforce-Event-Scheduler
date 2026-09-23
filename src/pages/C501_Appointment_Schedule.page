@@ -698,6 +698,7 @@
             </apex:outputPanel>
 
             <apex:outputPanel rendered="{!isStep5}">
+                <div class="scheduler-subtitle">Hello {!contactRec.FirstName},</div>
                 <div class="scheduler-title">Your Future Appointments</div>
                 <div class="scheduler-copy">
                     Select <strong>Modify</strong> to choose a different date/time, or <strong>Cancel</strong> to remove an appointment.
