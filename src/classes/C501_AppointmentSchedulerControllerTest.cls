@@ -135,6 +135,7 @@ private class C501_AppointmentSchedulerControllerTest {
         for (C501_Appointment__c a : [
             SELECT Id, Name, Date__c, Time__c, Enable__c, Available_Time__c, Maximum_Scheduled_Appointments__c
             FROM C501_Appointment__c
+            WHERE Date__c >= :Date.today()
             ORDER BY Date__c, Available_Time__c, Name
         ]) {
             Integer isoDow = Integer.valueOf(DateTime.newInstance(a.Date__c, Time.newInstance(12, 0, 0, 0)).format('u'));
@@ -1047,6 +1048,159 @@ private class C501_AppointmentSchedulerControllerTest {
 
         System.assertEquals(5, ctrl.step);
         System.assertEquals(0, ctrl.futureAppointments.size());
+    }
+
+    private static C501_Appointment_Scheduled__c makePastScheduled(Contact con, Boolean canceled) {
+        Id scheduleId = [SELECT Id FROM C501_Appointment_Schedule__c LIMIT 1].Id;
+        Date pastDate = Date.today().addDays(-1);
+        while (Integer.valueOf(DateTime.newInstance(pastDate, Time.newInstance(12, 0, 0, 0)).format('u')) == 4) {
+            pastDate = pastDate.addDays(-1);
+        }
+        C501_Appointment__c appt = makeAppointment(
+            canceled ? 'Past Canceled Slot' : 'Past Active Slot', pastDate, '09:00 AM', scheduleId
+        );
+        insert appt;
+        C501_Appointment_Scheduled__c scheduled = new C501_Appointment_Scheduled__c(
+            Name = canceled ? 'Past Canceled' : 'Past Active',
+            Canceled__c = canceled,
+            C501_Appointment__c = appt.Id,
+            C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id,
+            Email__c = con.Email
+        );
+        insert scheduled;
+        return scheduled;
+    }
+
+    private static C501_AppointmentSchedulerController makeSalesforceModifyController(Contact con) {
+        Test.setCurrentPage(Page.C501_Appointment_Schedule);
+        ApexPages.currentPage().getParameters().put('id', String.valueOf(con.Id));
+        ApexPages.currentPage().getParameters().put('mode', 'modify');
+        return new C501_AppointmentSchedulerController();
+    }
+
+    @isTest
+    static void testSalesforceCanModifyAndCancelPastAppointment() {
+        Contact con = getTestContact();
+        C501_Appointment_Scheduled__c past = makePastScheduled(con, false);
+        makePastScheduled(con, true);
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeSalesforceModifyController(con);
+        System.assertEquals(true, ctrl.getIncludePastAppointments());
+        System.assertEquals(5, ctrl.step);
+        System.assertEquals(0, ctrl.futureAppointments.size());
+        System.assertEquals(1, ctrl.pastAppointments.size(), 'Cancelled past appointments are excluded.');
+        System.assertEquals(past.Id, ctrl.pastAppointments[0].scheduledId);
+        ctrl.selectedScheduledId = past.Id;
+        ctrl.modifyAppointment();
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(past.Id, ctrl.editingScheduledId, 'Past appointment can enter the modification form.');
+        System.assertEquals(ctrl.pastAppointments[0].appointmentDate, ctrl.day1Date);
+
+        ctrl.cancelAppointment();
+        System.assertEquals(5, ctrl.step);
+        System.assertEquals(0, ctrl.pastAppointments.size(), 'Cancelled appointment disappears after refresh.');
+        Test.stopTest();
+        System.assertEquals(true, [SELECT Canceled__c FROM C501_Appointment_Scheduled__c WHERE Id = :past.Id].Canceled__c);
+    }
+
+    @isTest
+    static void testLookupWithoutIncomingIdCannotManagePastAppointment() {
+        Contact con = getTestContact();
+        C501_Appointment_Scheduled__c past = makePastScheduled(con, false);
+        Test.setCurrentPage(Page.C501_Appointment_Schedule);
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact = new Contact(LastName = con.LastName, Birthdate = con.Birthdate);
+        ctrl.findFutureAppointments();
+        System.assertEquals(false, ctrl.getIncludePastAppointments());
+        System.assertEquals(0, ctrl.futureAppointments.size());
+        System.assertEquals(0, ctrl.pastAppointments.size());
+        ctrl.selectedScheduledId = past.Id;
+        ctrl.modifyAppointment();
+        System.assertEquals(null, ctrl.editingScheduledId);
+        ctrl.cancelAppointment();
+        Test.stopTest();
+        System.assertEquals(false, [SELECT Canceled__c FROM C501_Appointment_Scheduled__c WHERE Id = :past.Id].Canceled__c);
+    }
+
+    @isTest
+    static void testSalesforcePastManagementExcludesCanceledAndOtherContacts() {
+        Contact con = getTestContact();
+        C501_Appointment_Scheduled__c canceled = makePastScheduled(con, true);
+        Contact other = [SELECT Id, Email FROM Contact WHERE LastName = 'Duplicate' LIMIT 1];
+        C501_Appointment_Scheduled__c unrelated = makePastScheduled(other, false);
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeSalesforceModifyController(con);
+        System.assertEquals(0, ctrl.futureAppointments.size());
+        ctrl.selectedScheduledId = canceled.Id;
+        ctrl.modifyAppointment();
+        System.assertEquals(null, ctrl.editingScheduledId);
+        ctrl.selectedScheduledId = unrelated.Id;
+        ctrl.cancelAppointment();
+        // Even a later lookup of another contact must not inherit the incoming contact's scope.
+        ctrl.contactRec = other;
+        System.assertEquals(false, ctrl.getIncludePastAppointments());
+        Test.stopTest();
+        System.assertEquals(false, [SELECT Canceled__c FROM C501_Appointment_Scheduled__c WHERE Id = :unrelated.Id].Canceled__c);
+    }
+
+    @isTest
+    static void testSalesforceReschedulesPastAppointmentToFutureDate() {
+        Contact con = getTestContact();
+        C501_Appointment_Scheduled__c past = makePastScheduled(con, false);
+        C501_Appointment__c replacement = getNonThursdayAppointments()[0];
+        System.assert(replacement.Date__c > Date.today(), 'Replacement must use a future appointment.');
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeSalesforceModifyController(con);
+        ctrl.selectedScheduledId = past.Id;
+        ctrl.modifyAppointment();
+        ctrl.day1Date = replacement.Date__c;
+        ctrl.loadDay1Times();
+        ctrl.day1AppointmentId = replacement.Id;
+        ctrl.schedule();
+        Test.stopTest();
+
+        System.assertEquals(4, ctrl.step, 'Replacement reaches the confirmation screen.');
+        System.assertEquals(0, [SELECT COUNT() FROM C501_Appointment_Scheduled__c WHERE Id = :past.Id]);
+        System.assertEquals(1, [
+            SELECT COUNT() FROM Appointment_Scheduled_Request__c
+            WHERE Contact__c = :con.Id AND Appointment__c = :replacement.Id
+              AND Appointment_Date__c = :replacement.Date__c AND Create_Appointment__c = true
+        ]);
+    }
+
+    @isTest
+    static void testSeparateSectionsExcludeCanceledAppointments() {
+        Contact con = getTestContact();
+        C501_Appointment_Scheduled__c past = makePastScheduled(con, false);
+        makePastScheduled(con, true);
+        C501_Appointment__c futureSlot = getNonThursdayAppointments()[0];
+        System.assert(futureSlot.Date__c >= Date.today(), 'Future-section fixture must not use a past slot.');
+        C501_Appointment_Scheduled__c future = new C501_Appointment_Scheduled__c(
+            Name = 'Future Active', Canceled__c = false,
+            C501_Appointment__c = futureSlot.Id, C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id, Email__c = con.Email
+        );
+        insert future;
+        insert new C501_Appointment_Scheduled__c(
+            Name = 'Future Canceled', Canceled__c = true,
+            C501_Appointment__c = futureSlot.Id, C501_Contact__c = con.Id,
+            Contact_Id__c = con.Id, Email__c = con.Email
+        );
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeSalesforceModifyController(con);
+        System.assertEquals(1, ctrl.futureAppointments.size());
+        System.assertEquals(future.Id, ctrl.futureAppointments[0].scheduledId);
+        System.assertEquals(1, ctrl.pastAppointments.size());
+        System.assertEquals(past.Id, ctrl.pastAppointments[0].scheduledId);
+        Test.stopTest();
     }
 
 }

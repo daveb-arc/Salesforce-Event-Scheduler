@@ -121,7 +121,18 @@ public without sharing class C501_AppointmentSchedulerController {
     public List<String> confirmationLines { get; set; }
 
     // Appointment management state
+    // Retained in Visualforce view state so AJAX postbacks keep the incoming contact context.
+    private Id incomingContactId;
+
+    public Boolean getIncludePastAppointments() {
+        return UserInfo.getUserType() != 'Guest'
+            && incomingContactId != null
+            && contactRec != null
+            && contactRec.Id == incomingContactId;
+    }
+
     public List<FutureAppointmentRow> futureAppointments { get; set; }
+    public List<FutureAppointmentRow> pastAppointments { get; set; }
     public String selectedScheduledId { get; set; }
     public Id editingScheduledId { get; set; }
     public Id editingRequestId { get; set; }
@@ -158,6 +169,7 @@ public without sharing class C501_AppointmentSchedulerController {
         day3TimeOptions = new List<SelectOption>();
         confirmationLines = new List<String>();
         futureAppointments = new List<FutureAppointmentRow>();
+        pastAppointments = new List<FutureAppointmentRow>();
 
         tryLoadIncomingContact();
 
@@ -182,6 +194,7 @@ public without sharing class C501_AppointmentSchedulerController {
 
         if (!found.isEmpty()) {
             contactRec = found[0];
+            incomingContactId = contactRec.Id;
             email = contactRec.Email;
 
             if (searchContact == null) {
@@ -331,22 +344,38 @@ public without sharing class C501_AppointmentSchedulerController {
 
     private void loadFutureAppointments() {
         futureAppointments = new List<FutureAppointmentRow>();
+        pastAppointments = new List<FutureAppointmentRow>();
         if (contactRec == null) {
             return;
         }
 
-        String contactIdText = String.valueOf(contactRec.Id);
-        for (C501_Appointment_Scheduled__c scheduled : [
-            SELECT Id, Name, C501_Appointment__c, C501_Appointment__r.Summary__c,
-                   Date__c, Time__c, Appointment_Info__c
-            FROM C501_Appointment_Scheduled__c
-            WHERE Date__c >= :Date.today()
-              AND Canceled__c = false
-              AND (C501_Contact__c = :contactRec.Id OR Contact_Id__c = :contactIdText)
-            ORDER BY Date__c, Appointment_Info__c, Name
-        ]) {
-            futureAppointments.add(new FutureAppointmentRow(scheduled));
+        for (C501_Appointment_Scheduled__c scheduled : getManageableAppointments(null)) {
+            if (scheduled.Date__c != null && scheduled.Date__c < Date.today()) {
+                pastAppointments.add(new FutureAppointmentRow(scheduled));
+            } else if (scheduled.Date__c != null) {
+                futureAppointments.add(new FutureAppointmentRow(scheduled));
+            }
         }
+    }
+
+    // Use the same eligibility rules for listing, modifying, and cancelling.
+    private List<C501_Appointment_Scheduled__c> getManageableAppointments(Id scheduledId) {
+        Id contactId = contactRec.Id;
+        String contactIdText = String.valueOf(contactId);
+        Date today = Date.today();
+        String query = 'SELECT Id, Name, C501_Appointment__c, C501_Appointment__r.Summary__c, '
+            + 'Date__c, Time__c, Appointment_Info__c FROM C501_Appointment_Scheduled__c '
+            + 'WHERE Canceled__c = false '
+            + 'AND (C501_Contact__c = :contactId OR Contact_Id__c = :contactIdText)';
+        if (!getIncludePastAppointments()) {
+            query += ' AND Date__c >= :today';
+        }
+        if (scheduledId != null) {
+            query += ' AND Id = :scheduledId LIMIT 1';
+        } else {
+            query += ' ORDER BY Date__c, Appointment_Info__c, Name';
+        }
+        return Database.query(query);
     }
 
     public PageReference modifyAppointment() {
@@ -443,17 +472,7 @@ public without sharing class C501_AppointmentSchedulerController {
             return null;
         }
 
-        String contactIdText = String.valueOf(contactRec.Id);
-        List<C501_Appointment_Scheduled__c> matches = [
-            SELECT Id, Name, C501_Appointment__c, C501_Appointment__r.Summary__c,
-                   Date__c, Time__c, Appointment_Info__c
-            FROM C501_Appointment_Scheduled__c
-            WHERE Id = :scheduledId
-              AND Date__c >= :Date.today()
-              AND Canceled__c = false
-              AND (C501_Contact__c = :contactRec.Id OR Contact_Id__c = :contactIdText)
-            LIMIT 1
-        ];
+        List<C501_Appointment_Scheduled__c> matches = getManageableAppointments(scheduledId);
 
         if (matches.isEmpty()) {
             ApexPages.addMessage(new ApexPages.Message(

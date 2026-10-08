@@ -734,6 +734,42 @@
                         </div>
                     </apex:repeat>
                 </div>
+
+                <apex:outputPanel rendered="{!includePastAppointments}" layout="block">
+                    <div class="scheduler-title">Your Past Appointments</div>
+                    <div class="scheduler-copy">
+                        Select <strong>Modify</strong> to choose a different date/time, or <strong>Cancel</strong> to remove an appointment.
+                    </div>
+                    <apex:outputPanel rendered="{!pastAppointments.size = 0}" layout="block" styleClass="welcome-box">
+                        <div class="scheduler-copy">You do not have any non-cancelled past appointments.</div>
+                    </apex:outputPanel>
+                    <div class="appointment-list">
+                        <apex:repeat value="{!pastAppointments}" var="appt">
+                            <div class="appointment-card">
+                                <div class="appointment-card-title">{!appt.appointmentLabel}</div>
+                                <div class="appointment-card-detail">
+                                    <strong>Date:</strong> {!appt.displayDate}<br/>
+                                    <strong>Time:</strong> {!appt.appointmentTime}
+                                </div>
+                                <div class="appointment-actions">
+                                    <apex:commandButton value="Modify →"
+                                                        action="{!modifyAppointment}"
+                                                        rerender="frm"
+                                                        oncomplete="initDatePickers();"
+                                                        styleClass="scheduler-button">
+                                        <apex:param name="appointmentId" value="{!appt.scheduledId}"/>
+                                    </apex:commandButton>
+                                    <apex:commandButton value="Cancel"
+                                                        action="{!cancelAppointment}"
+                                                        rerender="frm"
+                                                        styleClass="scheduler-button cancel-button">
+                                        <apex:param name="appointmentId" value="{!appt.scheduledId}"/>
+                                    </apex:commandButton>
+                                </div>
+                            </div>
+                        </apex:repeat>
+                    </div>
+                </apex:outputPanel>
             </apex:outputPanel>
 
             <apex:outputPanel rendered="{!isStep4}">
