@@ -560,7 +560,7 @@ public without sharing class C501_AppointmentSchedulerController {
 
         List<C501_Appointment__c> appts = [
             SELECT Id, Name, Date__c, Time__c, Summary__c, Available_Time__c,
-                Appointments_Full__c, Maximum_Scheduled_Appointments__c
+                Appointments_Full__c, Maximum_Scheduled_Appointments__c, Online_Reserved_Capacity__c
             FROM C501_Appointment__c
             WHERE Date__c = :selectedDate
             AND Enable__c = true
@@ -577,6 +577,16 @@ public without sharing class C501_AppointmentSchedulerController {
             }
 
             String label = getAppointmentLabel(appt);
+            if (!getIsGuestUser()) {
+                Integer booked = countRequestsForAppointment(appt.Id);
+                Integer capacity = appt.Maximum_Scheduled_Appointments__c == null
+                    ? 0 : Integer.valueOf(appt.Maximum_Scheduled_Appointments__c);
+                Integer remaining = Math.max(0, capacity - booked);
+                Integer reservedOnline = appt.Online_Reserved_Capacity__c == null
+                    ? 0 : Integer.valueOf(appt.Online_Reserved_Capacity__c);
+                label = (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
+                    + ' (' + remaining + ' Total Remaining, ' + reservedOnline + ' Reserved Online)';
+            }
             opts.add(new SelectOption(appt.Id, label));
         }
 
@@ -798,7 +808,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     
         Map<Id, C501_Appointment__c> apptById = new Map<Id, C501_Appointment__c>([
-            SELECT Id, Name, Date__c, Time__c, Summary__c, Appointments_Full__c, Maximum_Scheduled_Appointments__c
+            SELECT Id, Name, Date__c, Time__c, Summary__c, Appointments_Full__c, Maximum_Scheduled_Appointments__c, Online_Reserved_Capacity__c
             FROM C501_Appointment__c
             WHERE Id IN :appointmentIds
             FOR UPDATE
@@ -944,6 +954,18 @@ public without sharing class C501_AppointmentSchedulerController {
             ? 0
             : Integer.valueOf(appt.Maximum_Scheduled_Appointments__c);
     
+        Integer reservedOnline = appt.Online_Reserved_Capacity__c == null
+            ? 0 : Integer.valueOf(appt.Online_Reserved_Capacity__c);
+        if (!getIsGuestUser() && maxAllowed > 0 &&
+            existingCount >= Math.max(0, maxAllowed - reservedOnline)) {
+            ApexPages.addMessage(new ApexPages.Message(
+                ApexPages.Severity.ERROR,
+                dayLabel + ' has no staff-bookable spaces remaining; remaining capacity is reserved online.'
+            ));
+            clearSelectedDay(dayLabel);
+            return false;
+        }
+
         if ((appt.Appointments_Full__c == true) ||
             (maxAllowed > 0 && existingCount >= maxAllowed)) {
             ApexPages.addMessage(new ApexPages.Message(
