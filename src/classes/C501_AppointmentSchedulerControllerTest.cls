@@ -1247,4 +1247,55 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(0, ctrl.day1TimeOptions.size());
     }
 
+    // Cover empty-date branches on all three appointment dropdowns.
+    @isTest
+    static void testTimeDropdownsWithNullDates() {
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.day1Date = null;
+        ctrl.day2Date = null;
+        ctrl.day3Date = null;
+        Test.startTest();
+        ctrl.loadDay1Times();
+        ctrl.loadDay2Times();
+        ctrl.loadDay3Times();
+        Test.stopTest();
+        System.assertEquals(0, ctrl.day1TimeOptions.size());
+        System.assertEquals(0, ctrl.day2TimeOptions.size());
+        System.assertEquals(0, ctrl.day3TimeOptions.size());
+    }
+
+    // Disabled appointments must never be offered as booking choices.
+    @isTest
+    static void testDisabledSlotNotOffered() {
+        C501_Appointment__c appt = getNonThursdayAppointments()[0];
+        appt.Enable__c = false;
+        update appt;
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.day1Date = appt.Date__c;
+        Test.startTest();
+        ctrl.loadDay1Times();
+        Test.stopTest();
+        for (SelectOption opt : ctrl.day1TimeOptions) {
+            System.assertNotEquals(String.valueOf(appt.Id), opt.getValue());
+        }
+    }
+
+    // Verify the optional second/third day controls clear stale values.
+    @isTest
+    static void testToggleDaysClearsStaleSelections() {
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.showDay2 = true;
+        ctrl.showDay3 = true;
+        ctrl.day2Date = Date.today().addDays(2);
+        ctrl.day3Date = Date.today().addDays(3);
+        ctrl.day2AppointmentId = 'stale2';
+        ctrl.day3AppointmentId = 'stale3';
+        Test.startTest();
+        ctrl.showDay2 = false;
+        ctrl.toggleDay2();
+        Test.stopTest();
+        System.assertEquals(null, ctrl.day2AppointmentId);
+        System.assertEquals(null, ctrl.day3AppointmentId);
+    }
+
 }
