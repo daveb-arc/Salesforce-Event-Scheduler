@@ -1203,4 +1203,48 @@ private class C501_AppointmentSchedulerControllerTest {
         Test.stopTest();
     }
 
+
+    // Verify staff scheduling initializes today's options without a date-change postback.
+    @isTest
+    static void testStaffInitialLoadPopulatesTodayTimes() {
+        C501_Appointment_Schedule__c schedule = [
+            SELECT Id FROM C501_Appointment_Schedule__c LIMIT 1
+        ];
+        C501_Appointment__c todaySlot = makeAppointment(
+            'Initial Load Today', Date.today(), '09:00 AM', schedule.Id
+        );
+        insert todaySlot;
+
+        Contact con = getTestContact();
+        Test.setCurrentPage(Page.C501_Appointment_Schedule);
+        ApexPages.currentPage().getParameters().put('id', String.valueOf(con.Id));
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        Test.stopTest();
+
+        System.assertEquals(Date.today(), ctrl.day1Date);
+        Boolean found = false;
+        for (SelectOption option : ctrl.day1TimeOptions) {
+            if (option.getValue() == String.valueOf(todaySlot.Id)) found = true;
+        }
+        System.assert(found, 'Staff initial load should populate today appointment times.');
+    }
+
+    // Exercise the no-slot branch when staff open the scheduling page.
+    @isTest
+    static void testStaffInitialLoadWithoutEnabledTodaySlot() {
+        Contact con = getTestContact();
+        Test.setCurrentPage(Page.C501_Appointment_Schedule);
+        ApexPages.currentPage().getParameters().put('id', String.valueOf(con.Id));
+
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        Test.stopTest();
+
+        System.assertEquals(Date.today(), ctrl.day1Date);
+        System.assertNotEquals(null, ctrl.day1TimeOptions);
+        System.assertEquals(0, ctrl.day1TimeOptions.size());
+    }
+
 }
