@@ -584,8 +584,12 @@ public without sharing class C501_AppointmentSchedulerController {
                 Integer remaining = Math.max(0, capacity - booked);
                 Integer reservedOnline = appt.Online_Reserved_Capacity__c == null
                     ? 0 : Integer.valueOf(appt.Online_Reserved_Capacity__c);
+                Integer onlineUsed = reservedOnline > 0 ? countOnlineRequestsForAppointment(appt.Id) : 0;
+                Integer onlineProtected = Math.max(0, reservedOnline - onlineUsed);
                 label = (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
-                    + ' (' + remaining + ' Total Remaining, ' + reservedOnline + ' Reserved Online)';
+                    + ' (' + remaining + ' Total Remaining'
+                    + (reservedOnline > 0 ? ', ' + onlineProtected + '/' + reservedOnline + ' Reserved Online' : '')
+                    + ')';
             }
             opts.add(new SelectOption(appt.Id, label));
         }
@@ -956,11 +960,14 @@ public without sharing class C501_AppointmentSchedulerController {
     
         Integer reservedOnline = appt.Online_Reserved_Capacity__c == null
             ? 0 : Integer.valueOf(appt.Online_Reserved_Capacity__c);
+        Integer onlineUsed = (!getIsGuestUser() && reservedOnline > 0)
+            ? countOnlineRequestsForAppointment(appt.Id) : 0;
+        Integer onlineProtected = Math.max(0, reservedOnline - onlineUsed);
         if (!getIsGuestUser() && maxAllowed > 0 &&
-            existingCount >= Math.max(0, maxAllowed - reservedOnline)) {
+            existingCount >= Math.max(0, maxAllowed - onlineProtected)) {
             ApexPages.addMessage(new ApexPages.Message(
                 ApexPages.Severity.ERROR,
-                dayLabel + ' has no staff-bookable spaces remaining; remaining capacity is reserved online.'
+                dayLabel + ' has no staff-bookable spaces remaining; remaining capacity is reserve online only.'
             ));
             clearSelectedDay(dayLabel);
             return false;
@@ -1206,6 +1213,22 @@ public without sharing class C501_AppointmentSchedulerController {
         return true;
     }
         
+    // Public website bookings are created by the Salesforce Site guest user.
+    // This keeps the public and staff scheduling paths distinct without adding a new field.
+    private Integer countOnlineRequestsForAppointment(Id appointmentId) {
+        if (editingRequestId == null) {
+            return [SELECT COUNT() FROM Appointment_Scheduled_Request__c
+                    WHERE Appointment__c = :appointmentId
+                    AND Create_Appointment__c = true
+                    AND CreatedBy.UserType = 'Guest'];
+        }
+        return [SELECT COUNT() FROM Appointment_Scheduled_Request__c
+                WHERE Appointment__c = :appointmentId
+                AND Create_Appointment__c = true
+                AND CreatedBy.UserType = 'Guest'
+                AND Id != :editingRequestId];
+    }
+
     private Integer countRequestsForAppointment(Id appointmentId) {
         if (editingRequestId == null) {
             return [
