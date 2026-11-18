@@ -1213,20 +1213,17 @@ public without sharing class C501_AppointmentSchedulerController {
         return true;
     }
         
-    // Public website bookings are created by the Salesforce Site guest user.
-    // This keeps the public and staff scheduling paths distinct without adding a new field.
+    // Count all active public booking requests for this slot, including a request
+    // currently being modified. Cancellation sets Create_Appointment__c to false,
+    // so the next availability query automatically restores the protected space.
+    // Unlike the total-capacity check, the online reservation count must not
+    // exclude editingRequestId: that booking still occupies an online space
+    // until its cancellation or modification has actually been saved.
     private Integer countOnlineRequestsForAppointment(Id appointmentId) {
-        if (editingRequestId == null) {
-            return [SELECT COUNT() FROM Appointment_Scheduled_Request__c
-                    WHERE Appointment__c = :appointmentId
-                    AND Create_Appointment__c = true
-                    AND CreatedBy.UserType = 'Guest'];
-        }
         return [SELECT COUNT() FROM Appointment_Scheduled_Request__c
                 WHERE Appointment__c = :appointmentId
                 AND Create_Appointment__c = true
-                AND CreatedBy.UserType = 'Guest'
-                AND Id != :editingRequestId];
+                AND CreatedBy.UserType = 'Guest'];
     }
 
     private Integer countRequestsForAppointment(Id appointmentId) {
