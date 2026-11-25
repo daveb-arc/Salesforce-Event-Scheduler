@@ -258,6 +258,76 @@ private class C501_AppointmentSchedulerControllerTest {
     }
 
     @isTest
+    static void testDuplicateStreetLookup() {
+        List<Contact> duplicates = [SELECT Id, FirstName, MailingStreet FROM Contact WHERE LastName = 'Duplicate' ORDER BY FirstName];
+        duplicates[0].MailingStreet = '101 Main Street';
+        duplicates[1].MailingStreet = '202 Main Street';
+        update duplicates;
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact.LastName = 'Duplicate';
+        ctrl.searchContact.Birthdate = Date.newInstance(1999, 2, 2);
+        ctrl.findContact();
+        System.assertEquals(true, ctrl.showStreetAddress);
+        System.assertEquals(null, ctrl.contactRec);
+        ctrl.streetAddress = 'Unknown address';
+        ctrl.findContact();
+        System.assertEquals(true, ctrl.showLookupAssistance);
+        System.assertEquals(null, ctrl.contactRec);
+        ctrl.streetAddress = '  202 MAIN  STREET  ';
+        ctrl.findContact();
+        System.assertEquals(duplicates[1].Id, ctrl.contactRec.Id);
+        System.assertEquals(3, ctrl.step);
+        System.assertEquals(false, ctrl.showStreetAddress);
+    }
+
+    @isTest
+    static void testStreetMatchingRules() {
+        System.assertEquals(2, C501_AppointmentSchedulerController.streetScore('15 outlaw rd', '15 Outlaw Road'));
+        System.assertEquals(1, C501_AppointmentSchedulerController.streetScore('15 outlw rd', '15 Outlaw Road'));
+        System.assertEquals(0, C501_AppointmentSchedulerController.streetScore('15 outlaw rd', '150 Outlaw Road'));
+        System.assertEquals(0, C501_AppointmentSchedulerController.streetScore('15 outlaw rd', '215 Outlaw Road'));
+        System.assertEquals(0, C501_AppointmentSchedulerController.streetScore('15 main st', '15 Outlaw Road'));
+        System.assertEquals(0, C501_AppointmentSchedulerController.streetScore('15 outlaw rd apt 2', '15 Outlaw Road Apt 3'));
+        System.assertEquals(2, C501_AppointmentSchedulerController.streetScore('15 outlaw rd apt 2', '15 Outlaw Road #2'));
+    }
+
+    @isTest
+    static void testOtherStreetAndFuzzyLookup() {
+        List<Contact> duplicates = [SELECT Id, FirstName, MailingStreet, OtherStreet FROM Contact WHERE LastName = 'Duplicate' ORDER BY FirstName];
+        duplicates[0].MailingStreet = '15 Oak Road';
+        duplicates[1].MailingStreet = '150 Outlaw Road';
+        duplicates[1].OtherStreet = '15 Outlaw Road';
+        update duplicates;
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact.LastName = 'Duplicate';
+        ctrl.searchContact.Birthdate = Date.newInstance(1999, 2, 2);
+        ctrl.findContact();
+        ctrl.streetAddress = '15 Outlw Rd';
+        ctrl.findContact();
+        System.assertNotEquals(null, ctrl.contactRec);
+        System.assertEquals(duplicates[1].Id, ctrl.contactRec.Id);
+    }
+
+    @isTest
+    static void testDuplicateSameStreetLookup() {
+        List<Contact> duplicates = [SELECT Id, MailingStreet FROM Contact WHERE LastName = 'Duplicate'];
+        for (Contact rec : duplicates) { rec.MailingStreet = '101 Main Street'; }
+        update duplicates;
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.startLookup();
+        ctrl.searchContact.LastName = 'Duplicate';
+        ctrl.searchContact.Birthdate = Date.newInstance(1999, 2, 2);
+        ctrl.findFutureAppointments();
+        ctrl.streetAddress = '101 Main Street';
+        ctrl.findFutureAppointments();
+        System.assertEquals(true, ctrl.showLookupAssistance);
+        System.assertEquals(null, ctrl.contactRec);
+        System.assertEquals(2, ctrl.step);
+    }
+
+    @isTest
     static void testLoadDay1Times() {
         List<C501_Appointment__c> appts = getNonThursdayAppointments();
 

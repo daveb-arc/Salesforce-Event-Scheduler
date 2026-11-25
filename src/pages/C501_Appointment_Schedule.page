@@ -543,6 +543,16 @@
                         </div>
                     </div>
 
+                    <apex:outputPanel rendered="{!showStreetAddress}" layout="block"
+                                      style="background:#fffbdc;border:2px solid #d49b22;border-radius:5px;padding:14px;margin:16px 0;">
+                        <apex:outputLabel value="Street Address" for="streetAddressInput" styleClass="field-label"/>
+                        <apex:inputText id="streetAddressInput" value="{!streetAddress}" styleClass="full-width-input"/>
+                        <div class="field-help">Enter your street address as provided to the food bank, including apartment or unit number if applicable, then select Find Appointments or Modify Appointments again.</div>
+                        <apex:outputPanel rendered="{!showLookupAssistance}" layout="block" style="margin-top:12px;">
+                            Please <a href="https://www.whitecenterfoodbank.org/contact" target="_blank" rel="noopener noreferrer">contact White Center Food Bank for assistance</a>.
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+
                     <div class="button-row-center">
                         <apex:commandButton value="Find Appointments →"
                                             action="{!findContact}"

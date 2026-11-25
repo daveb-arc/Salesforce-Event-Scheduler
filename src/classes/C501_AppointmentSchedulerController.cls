@@ -6,6 +6,19 @@ public without sharing class C501_AppointmentSchedulerController {
     public Date birthDate { get; set; }
 
     public Contact searchContact { get; set; }
+    public String streetAddress { get; set; }
+    public Boolean showStreetAddress { get; private set; }
+    public Boolean showLookupAssistance { get; private set; }
+    private String challengedLastName;
+    private Date challengedBirthdate;
+
+    private void resetAddressChallenge() {
+        showStreetAddress = false;
+        showLookupAssistance = false;
+        streetAddress = null;
+        challengedLastName = null;
+        challengedBirthdate = null;
+    }
 
     public Contact contactRec { get; set; }
     public String email { get; set; }
@@ -159,6 +172,7 @@ public without sharing class C501_AppointmentSchedulerController {
 
     public C501_AppointmentSchedulerController() {
         step = 1;
+        resetAddressChallenge();
         showDay2 = false;
         showDay3 = false;
 
@@ -219,6 +233,7 @@ public without sharing class C501_AppointmentSchedulerController {
 
 
     public PageReference startLookup() {
+        resetAddressChallenge();
         step = 2;
         return null;
     }
@@ -287,10 +302,17 @@ public without sharing class C501_AppointmentSchedulerController {
     }
 
     public PageReference findContact() {
+        contactRec = null;
+        email = null;
+        step = 2;
+        showLookupAssistance = false;
         if (searchContact == null) {
             searchContact = new Contact();
         }
 
+        if (challengedLastName != searchContact.LastName || challengedBirthdate != searchContact.Birthdate) {
+            resetAddressChallenge();
+        }
         if (String.isBlank(searchContact.LastName) || searchContact.Birthdate == null) {
             ApexPages.addMessage(new ApexPages.Message(
                 ApexPages.Severity.ERROR,
@@ -315,19 +337,98 @@ public without sharing class C501_AppointmentSchedulerController {
             return null;
         }
 
-        if (matches.size() > 1) {
-            ApexPages.addMessage(new ApexPages.Message(
-                ApexPages.Severity.ERROR,
-                'Multiple contacts matched that Last Name and Birthdate.'
-            ));
-            return null;
+        if (matches.size() > 1 || showStreetAddress) {
+            showStreetAddress = true;
+            challengedLastName = searchContact.LastName;
+            challengedBirthdate = searchContact.Birthdate;
+            if (String.isBlank(streetAddress)) {
+                ApexPages.addMessage(new ApexPages.Message(
+                    ApexPages.Severity.ERROR,
+                    'Multiple contacts matched that Last Name and Birthdate.'
+                ));
+                return null;
+            }
+
+            List<Contact> exactMatches = new List<Contact>();
+            List<Contact> fuzzyMatches = new List<Contact>();
+            String enteredStreet = normalizeStreet(streetAddress);
+            for (Contact candidate : [
+                SELECT Id, FirstName, LastName, Name, Birthdate, Email, AccountId, MailingStreet, OtherStreet
+                FROM Contact
+                WHERE LastName = :searchContact.LastName
+                  AND Birthdate = :searchContact.Birthdate
+            ]) {
+                Integer score = Math.max(streetScore(enteredStreet, candidate.MailingStreet),
+                                         streetScore(enteredStreet, candidate.OtherStreet));
+                if (score == 2) exactMatches.add(candidate);
+                if (score == 1) fuzzyMatches.add(candidate);
+            }
+            // Prefer a unique normalized match; never break a tie by record order.
+            List<Contact> addressMatches = exactMatches.isEmpty() ? fuzzyMatches : exactMatches;
+            if (addressMatches.size() != 1) {
+                showLookupAssistance = true;
+                ApexPages.addMessage(new ApexPages.Message(
+                    ApexPages.Severity.ERROR,
+                    'Unable to identify a single matching contact using that Street Address.'
+                ));
+                return null;
+            }
+            matches = addressMatches;
         }
 
+        resetAddressChallenge();
         contactRec = matches[0];
         email = contactRec.Email;
         step = 3;
 
         return null;
+    }
+
+    private static String normalizeStreet(String value) {
+        if (String.isBlank(value)) return '';
+        String cleaned = value.toLowerCase().replaceAll('[.]', '').replaceAll('#', ' apt ')
+            .replaceAll('[,;]', ' ').replaceAll('\\s+', ' ').trim();
+        Map<String, String> aliases = new Map<String, String>{
+            'road'=>'rd', 'street'=>'st', 'avenue'=>'ave', 'boulevard'=>'blvd',
+            'drive'=>'dr', 'lane'=>'ln', 'court'=>'ct', 'place'=>'pl',
+            'circle'=>'cir', 'highway'=>'hwy', 'parkway'=>'pkwy', 'terrace'=>'ter',
+            'north'=>'n', 'south'=>'s', 'east'=>'e', 'west'=>'w',
+            'northeast'=>'ne', 'northwest'=>'nw', 'southeast'=>'se', 'southwest'=>'sw',
+            'apartment'=>'apt', 'unit'=>'apt', 'suite'=>'apt', 'ste'=>'apt'
+        };
+        List<String> tokens = new List<String>();
+        for (String token : cleaned.split(' ')) {
+            tokens.add(aliases.containsKey(token) ? aliases.get(token) : token);
+        }
+        return String.join(tokens, ' ');
+    }
+
+    @TestVisible
+    private static Integer streetScore(String entered, String stored) {
+        String normalized = normalizeStreet(stored);
+        if (String.isBlank(entered) || String.isBlank(normalized)) return 0;
+        List<String> left = entered.split(' ');
+        List<String> right = normalized.split(' ');
+        // Require the complete leading house number, not a substring or unit number.
+        if (left.size() < 2 || right.size() < 2 ||
+            !Pattern.matches('[0-9]+[a-z]?', left[0]) || left[0] != right[0]) return 0;
+        if (entered == normalized) return 2;
+        // Only one minor typo in one alphabetic street-name token is permitted.
+        // Numbers, directions, suffixes and unit identifiers must match exactly.
+        if (left.size() != right.size()) return 0;
+        Set<String> protectedTokens = new Set<String>{'rd','st','ave','blvd','dr','ln','ct','pl','cir','hwy','pkwy','ter','n','s','e','w','ne','nw','se','sw','apt'};
+        Boolean unitPart = false;
+        Integer differences = 0;
+        for (Integer i = 1; i < left.size(); i++) {
+            if (left[i] == 'apt' || right[i] == 'apt') unitPart = true;
+            if (left[i] == right[i]) continue;
+            if (unitPart || protectedTokens.contains(left[i]) || protectedTokens.contains(right[i]) ||
+                !Pattern.matches('[a-z]{5,}', left[i]) || !Pattern.matches('[a-z]{5,}', right[i])) return 0;
+            if (left[i].getLevenshteinDistance(right[i]) > 1) return 0;
+            differences++;
+            if (differences > 1) return 0;
+        }
+        return differences == 1 ? 1 : 0;
     }
 
     public PageReference findFutureAppointments() {
