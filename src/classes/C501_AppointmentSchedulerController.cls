@@ -470,8 +470,11 @@ public without sharing class C501_AppointmentSchedulerController {
             + 'Date__c, Time__c, Appointment_Info__c FROM C501_Appointment_Scheduled__c '
             + 'WHERE Canceled__c = false '
             + 'AND (C501_Contact__c = :contactId OR Contact_Id__c = :contactIdText)';
+        Date earliestPastDate = today.toStartOfMonth().addMonths(-1);
         if (!getIncludePastAppointments()) {
             query += ' AND Date__c >= :today';
+        } else {
+            query += ' AND Date__c >= :earliestPastDate';
         }
         if (scheduledId != null) {
             query += ' AND Id = :scheduledId LIMIT 1';

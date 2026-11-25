@@ -747,11 +747,12 @@
 
                 <apex:outputPanel rendered="{!includePastAppointments}" layout="block">
                     <div class="scheduler-title">Your Past Appointments</div>
+                    <div class="scheduler-copy">Showing appointments from this month and last month.</div>
                     <div class="scheduler-copy">
                         Select <strong>Modify</strong> to choose a different date/time, or <strong>Cancel</strong> to remove an appointment.
                     </div>
                     <apex:outputPanel rendered="{!pastAppointments.size = 0}" layout="block" styleClass="welcome-box">
-                        <div class="scheduler-copy">You do not have any non-cancelled past appointments.</div>
+                        <div class="scheduler-copy">You do not have any non-cancelled past appointments from this month or last month.</div>
                     </apex:outputPanel>
                     <div class="appointment-list">
                         <apex:repeat value="{!pastAppointments}" var="appt">

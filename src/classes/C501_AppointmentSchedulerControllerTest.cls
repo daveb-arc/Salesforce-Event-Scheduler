@@ -1121,11 +1121,15 @@ private class C501_AppointmentSchedulerControllerTest {
     }
 
     private static C501_Appointment_Scheduled__c makePastScheduled(Contact con, Boolean canceled) {
-        Id scheduleId = [SELECT Id FROM C501_Appointment_Schedule__c LIMIT 1].Id;
         Date pastDate = Date.today().addDays(-1);
         while (Integer.valueOf(DateTime.newInstance(pastDate, Time.newInstance(12, 0, 0, 0)).format('u')) == 4) {
             pastDate = pastDate.addDays(-1);
         }
+        return makePastScheduledOnDate(con, canceled, pastDate);
+    }
+
+    private static C501_Appointment_Scheduled__c makePastScheduledOnDate(Contact con, Boolean canceled, Date pastDate) {
+        Id scheduleId = [SELECT Id FROM C501_Appointment_Schedule__c LIMIT 1].Id;
         C501_Appointment__c appt = makeAppointment(
             canceled ? 'Past Canceled Slot' : 'Past Active Slot', pastDate, '09:00 AM', scheduleId
         );
@@ -1273,6 +1277,27 @@ private class C501_AppointmentSchedulerControllerTest {
         Test.stopTest();
     }
 
+
+    @isTest
+    static void testPastAppointmentsCalendarMonthWindow() {
+        Contact con = getTestContact();
+        Date cutoff = Date.today().toStartOfMonth().addMonths(-1);
+        C501_Appointment_Scheduled__c older = makePastScheduledOnDate(con, false, cutoff.addDays(-1));
+        C501_Appointment_Scheduled__c boundary = makePastScheduledOnDate(con, false, cutoff);
+        C501_Appointment_Scheduled__c recent = makePastScheduled(con, false);
+        Test.startTest();
+        C501_AppointmentSchedulerController ctrl = makeSalesforceModifyController(con);
+        Set<Id> visibleIds = new Set<Id>();
+        for (C501_AppointmentSchedulerController.FutureAppointmentRow row : ctrl.pastAppointments) {
+            visibleIds.add(row.scheduledId);
+        }
+        System.assertEquals(new Set<Id>{boundary.Id, recent.Id}, visibleIds,
+            'Only past appointments in this month or last month should appear.');
+        ctrl.selectedScheduledId = older.Id;
+        ctrl.modifyAppointment();
+        System.assertEquals(null, ctrl.editingScheduledId, 'Older appointments are outside the management window.');
+        Test.stopTest();
+    }
 
     // Verify staff scheduling initializes today's options without a date-change postback.
     @isTest
