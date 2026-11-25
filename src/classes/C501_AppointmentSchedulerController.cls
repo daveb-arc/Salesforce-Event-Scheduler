@@ -191,6 +191,7 @@ public without sharing class C501_AppointmentSchedulerController {
             day1Date = Date.today();
             day1DateText = day1Date.format();
             day1TimeOptions = buildTimeOptionsForDate(day1Date, 'Day 1');
+        if (!getIsGuestUser()) day1AppointmentId = preferredOfficeTime(day1TimeOptions);
         }
     }
 
@@ -614,6 +615,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     
         day1TimeOptions = buildTimeOptionsForDate(day1Date, 'Day 1');
+        if (!getIsGuestUser()) day1AppointmentId = preferredOfficeTime(day1TimeOptions);
         return null;
     }
     
@@ -626,6 +628,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     
         day2TimeOptions = buildTimeOptionsForDate(day2Date, 'Day 2');
+        if (!getIsGuestUser()) day2AppointmentId = preferredOfficeTime(day2TimeOptions);
         return null;
     }
     
@@ -638,6 +641,7 @@ public without sharing class C501_AppointmentSchedulerController {
         }
     
         day3TimeOptions = buildTimeOptionsForDate(day3Date, 'Day 3');
+        if (!getIsGuestUser()) day3AppointmentId = preferredOfficeTime(day3TimeOptions);
         return null;
     }
 
@@ -687,15 +691,26 @@ public without sharing class C501_AppointmentSchedulerController {
                     ? 0 : Integer.valueOf(appt.Online_Reserved_Capacity__c);
                 Integer onlineUsed = reservedOnline > 0 ? countOnlineRequestsForAppointment(appt.Id) : 0;
                 Integer onlineProtected = Math.max(0, reservedOnline - onlineUsed);
+                Integer onlineAvailable = Math.min(remaining, onlineProtected);
+                Integer officeAvailable = remaining - onlineAvailable;
+                if (remaining == 0) continue;
                 label = (String.isBlank(appt.Time__c) ? appt.Name : appt.Time__c)
-                    + ' (' + remaining + ' Total Remaining'
-                    + (reservedOnline > 0 ? ', ' + onlineProtected + '/' + reservedOnline + ' Reserved Online' : '')
-                    + ')';
+                    + ' - ' + officeAvailable + ' Office Available'
+                    + (onlineAvailable > 0 ? ' (' + onlineAvailable + ' Online Available)' : '');
             }
             opts.add(new SelectOption(appt.Id, label));
         }
 
         return opts;
+    }
+
+    private String preferredOfficeTime(List<SelectOption> options) {
+        for (SelectOption option : options) {
+            if (Pattern.compile(' - [1-9][0-9]* Office Available').matcher(option.getLabel()).find()) {
+                return option.getValue();
+            }
+        }
+        return options.isEmpty() ? null : options[0].getValue();
     }
 
     private String getAppointmentLabel(C501_Appointment__c appt) {

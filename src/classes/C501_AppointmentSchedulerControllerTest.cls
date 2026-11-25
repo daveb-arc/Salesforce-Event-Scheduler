@@ -338,7 +338,7 @@ private class C501_AppointmentSchedulerControllerTest {
         ctrl.loadDay1Times();
         Test.stopTest();
 
-        System.assertEquals(null, ctrl.day1AppointmentId);
+        System.assertEquals(ctrl.day1TimeOptions[0].getValue(), ctrl.day1AppointmentId);
         System.assertNotEquals(null, ctrl.day1TimeOptions);
         System.assert(ctrl.day1TimeOptions.size() > 0);
     }
@@ -362,8 +362,8 @@ private class C501_AppointmentSchedulerControllerTest {
         ctrl.loadDay3Times();
         Test.stopTest();
 
-        System.assertEquals(null, ctrl.day2AppointmentId);
-        System.assertEquals(null, ctrl.day3AppointmentId);
+        System.assertEquals(ctrl.day2TimeOptions[0].getValue(), ctrl.day2AppointmentId);
+        System.assertEquals(ctrl.day3TimeOptions[0].getValue(), ctrl.day3AppointmentId);
         System.assert(ctrl.day2TimeOptions.size() > 0);
         System.assert(ctrl.day3TimeOptions.size() > 0);
     }
@@ -561,7 +561,7 @@ private class C501_AppointmentSchedulerControllerTest {
         Test.stopTest();
 
         System.assertEquals(appts[2].Date__c, ctrl.day3Date);
-        System.assertEquals(null, ctrl.day3AppointmentId);
+        System.assertEquals(ctrl.day3TimeOptions[0].getValue(), ctrl.day3AppointmentId);
         System.assert(ctrl.day3TimeOptions.size() > 0);
     }
 
@@ -1368,4 +1368,47 @@ private class C501_AppointmentSchedulerControllerTest {
         System.assertEquals(null, ctrl.day3AppointmentId);
     }
 
+    @isTest
+    static void testOfficeAvailabilityPreferenceAndFallback() {
+        Date d = nextDateNotThursday(Date.today().addDays(20));
+        Id scheduleId = [SELECT Id FROM C501_Appointment_Schedule__c LIMIT 1].Id;
+        C501_Appointment__c first = makeAppointment('Online Only', d, '09:00 AM', scheduleId);
+        first.Online_Reserved_Capacity__c = 5;
+        C501_Appointment__c second = makeAppointment('Mixed', d, '10:00 AM', scheduleId);
+        second.Online_Reserved_Capacity__c = 2;
+        C501_Appointment__c third = makeAppointment('Office Only', d, '11:00 AM', scheduleId);
+        third.Online_Reserved_Capacity__c = 0;
+        insert new List<C501_Appointment__c>{first, second, third};
+        // Reapply explicit capacities after insert-time automation.
+        update new List<C501_Appointment__c>{
+            new C501_Appointment__c(Id=first.Id, Maximum_Scheduled_Appointments__c=5, Online_Reserved_Capacity__c=5),
+            new C501_Appointment__c(Id=second.Id, Maximum_Scheduled_Appointments__c=5, Online_Reserved_Capacity__c=2),
+            new C501_Appointment__c(Id=third.Id, Maximum_Scheduled_Appointments__c=5, Online_Reserved_Capacity__c=0)
+        };
+        Set<Id> slotIds = new Set<Id>{first.Id, second.Id, third.Id};
+        Map<Id, C501_Appointment__c> stored = new Map<Id, C501_Appointment__c>([
+            SELECT Id, Name, Time__c, Maximum_Scheduled_Appointments__c, Online_Reserved_Capacity__c
+            FROM C501_Appointment__c WHERE Id IN :slotIds
+        ]);
+        C501_AppointmentSchedulerController ctrl = new C501_AppointmentSchedulerController();
+        ctrl.day1Date = d;
+        ctrl.loadDay1Times();
+        System.assertEquals(3, ctrl.day1TimeOptions.size());
+        List<Id> expectedIds = new List<Id>{first.Id, second.Id, third.Id};
+        List<String> expectedSuffixes = new List<String>{' - 0 Office Available (5 Online Available)', ' - 3 Office Available (2 Online Available)', ' - 5 Office Available'};
+        for (Integer i = 0; i < expectedIds.size(); i++) {
+            C501_Appointment__c row = stored.get(expectedIds[i]);
+            System.assertEquals(String.valueOf(row.Id), ctrl.day1TimeOptions[i].getValue(), 'Unexpected slot order');
+            String timeLabel = String.isBlank(row.Time__c) ? row.Name : row.Time__c;
+            System.assertEquals(timeLabel + expectedSuffixes[i], ctrl.day1TimeOptions[i].getLabel(),
+                'Slot ' + row.Id + ': stored capacity=' + row.Maximum_Scheduled_Appointments__c + ', reserved=' + row.Online_Reserved_Capacity__c);
+        }
+        System.assertEquals(String.valueOf(second.Id), ctrl.day1AppointmentId);
+        update new List<C501_Appointment__c>{
+            new C501_Appointment__c(Id=second.Id, Online_Reserved_Capacity__c=5),
+            new C501_Appointment__c(Id=third.Id, Online_Reserved_Capacity__c=5)
+        };
+        ctrl.loadDay1Times();
+        System.assertEquals(String.valueOf(first.Id), ctrl.day1AppointmentId);
+    }
 }

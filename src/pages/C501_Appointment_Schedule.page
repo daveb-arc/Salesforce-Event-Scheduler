@@ -607,7 +607,7 @@
 
                             <apex:outputPanel id="day1Times" layout="block">
                                 <apex:outputLabel value="Select Time" styleClass="field-label" for="day1Time"/>
-                                <apex:selectList id="day1Time" value="{!day1AppointmentId}" size="1" styleClass="full-width-select">
+                                <apex:selectList id="day1Time" value="{!day1AppointmentId}" size="1" styleClass="full-width-select appointment-time-select">
                                     <apex:selectOptions value="{!day1TimeOptions}"/>
                                 </apex:selectList>
                             </apex:outputPanel>
@@ -645,7 +645,7 @@
 
                                 <apex:outputPanel id="day2Times" layout="block">
                                     <apex:outputLabel value="Select Time" styleClass="field-label" for="day2Time"/>
-                                    <apex:selectList id="day2Time" value="{!day2AppointmentId}" size="1" styleClass="full-width-select">
+                                    <apex:selectList id="day2Time" value="{!day2AppointmentId}" size="1" styleClass="full-width-select appointment-time-select">
                                         <apex:selectOptions value="{!day2TimeOptions}"/>
                                     </apex:selectList>
                                 </apex:outputPanel>
@@ -684,7 +684,7 @@
 
                                 <apex:outputPanel id="day3Times" layout="block">
                                     <apex:outputLabel value="Select Time" styleClass="field-label" for="day3Time"/>
-                                    <apex:selectList id="day3Time" value="{!day3AppointmentId}" size="1" styleClass="full-width-select">
+                                    <apex:selectList id="day3Time" value="{!day3AppointmentId}" size="1" styleClass="full-width-select appointment-time-select">
                                         <apex:selectOptions value="{!day3TimeOptions}"/>
                                     </apex:selectList>
                                 </apex:outputPanel>
@@ -898,7 +898,14 @@
         return [false, 'appt-date-unavailable', 'No appointments available'];
     }
 
+    function highlightOfficeTimes() {
+        document.querySelectorAll('.appointment-time-select option').forEach(function(option) {
+            option.style.backgroundColor = / - [1-9][0-9]* Office Available/.test(option.text) ? '#E8F5E9' : '';
+        });
+    }
+
     function initDatePickers() {
+        highlightOfficeTimes();
         var availabilityCalendarEnabled = refreshAppointmentCalendarAvailability();
 
         jQuery(".appt-date").each(function() {
@@ -968,6 +975,7 @@
         // This ensures the year list still loads if the external jQuery CDN is blocked or delayed.
         initBirthdateDropdowns();
         updateManageAppointmentsButton();
+        highlightOfficeTimes();
 
         // The appointment date picker still uses jQuery UI, so initialize it only when available.
         if (window.jQuery && jQuery.fn && jQuery.fn.datepicker) {
